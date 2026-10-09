@@ -8,7 +8,7 @@
 
 **Tech Stack:** `starknet` v10 (already a dependency), `@medialane/sdk` (new dependency, for `computeAccountAddress`/`ownerConstructorCalldata` — hand-duplicating protocol-specific address derivation is a correctness risk this plan avoids), PHP REST proxy routes following the existing `forward_json()` pattern.
 
-**Spec:** This document. Rationale is drawn from this session's conversation: the "backend is not the authority" principle (verify on-chain, not database/API assertions), `10-foundations.md` §III ("no crypto jargon in consumer copy"), and the verified `buildMintIntent` recipient mechanics above.
+**Spec:** This document. Rationale is drawn from this session's conversation: the "backend is not the authority" principle (verify on-chain, not database/API assertions), the "no crypto jargon in consumer copy" rule, and the verified `buildMintIntent` recipient mechanics above.
 
 ## Global Constraints
 
