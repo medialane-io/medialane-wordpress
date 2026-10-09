@@ -1,7 +1,6 @@
-// The platform's canonical license presets, expanded into the trait set
-// documented in medialane-core's 04-licensing-model.md — third parties (and
-// the remix/marketplace flows on medialane-backend) read License terms from
-// these exact attributes, never from a free-form string.
+// The platform's canonical license presets, expanded into the canonical trait
+// set — third parties (and the remix/marketplace flows on medialane-backend)
+// read License terms from these exact attributes, never from a free-form string.
 const LICENSE_PRESETS = {
   "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" },
   "CC BY": { commercialUse: "Yes", derivatives: "Allowed", attribution: "Required" },

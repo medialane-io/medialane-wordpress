@@ -36,9 +36,8 @@ phpunit -c phpunit.xml.dist   # requires WP_TESTS_DIR (WP core test lib)
   an owner's collections a mint targets). **Which collections exist is never
   decided locally.** `Settings::fetch_live_collections()` asks
   `medialane-backend`'s indexer (`GET /v1/collections?owner=`) fresh, every
-  time it's called — that's the only authority on what actually exists,
-  per `medialane-core`'s "the smart contract is the only truth" (`00
-  §1`)/"never a second source of truth" (`02 §IV`) principles. `wp_options`
+  time it's called — that's the only authority on what actually exists:
+  the smart contract is the only truth, never a second source. `wp_options`
   (`tokenize_content_collection_labels`) stores *only* a friendly label per
   contract — a name has no on-chain meaning, so that part is legitimate
   local data, same category as a slug. A stored label whose contract isn't
@@ -139,7 +138,7 @@ phpunit -c phpunit.xml.dist   # requires WP_TESTS_DIR (WP core test lib)
 - License is programmable, not a string. `assets/src/license.js`'s
   `buildLicenseAttributes(preset, aiPolicy)` expands a chosen preset (`CC
   BY-SA`, `MIT`, `All Rights Reserved`, etc.) into the canonical trait set
-  documented in `medialane-core`'s `04-licensing-model.md` — `Commercial
+  — `Commercial
   Use`, `Derivatives`, `Attribution`, `Territory`, `AI Policy` — and
   `prepareMint()` uploads it as the metadata's `attributes` array, never as
   a flat `license` field. That's the same encoding `medialane-backend`'s
