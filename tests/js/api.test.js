@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  createMintIntent, getToken, buildSponsoredInvoke, executeSponsoredInvoke,
+  createMintIntent, buildSponsoredInvoke, executeSponsoredInvoke,
   buildSponsoredDeploy, provisionRecipientWallet, saveCollectionEntry, saveCategoryMap,
   saveWalletAddress,
 } from "../../assets/src/api.js";
@@ -23,10 +23,10 @@ describe("api client", () => {
     );
   });
 
-  it("getToken returns null instead of throwing on 404", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "not found" }) });
-    const result = await getToken("0x1", "1");
-    expect(result).toBeNull();
+  it("exports nothing the plugin does not call", async () => {
+    const api = await import("../../assets/src/api.js");
+    expect(api.getToken).toBeUndefined();
+    expect(api.saveCollectionContract).toBeUndefined();
   });
 
   it("buildSponsoredInvoke posts to /paymaster/invoke/build", async () => {

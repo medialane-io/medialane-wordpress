@@ -7,7 +7,6 @@ vi.mock("../../assets/src/wallet.js", () => ({
 vi.mock("../../assets/src/api.js", () => ({
   createCollectionIntent: vi.fn().mockResolvedValue({ data: { calls: [{ contractAddress: "0xfactory" }] } }),
   syncCollectionTx: vi.fn().mockResolvedValue({}),
-  saveCollectionContract: vi.fn().mockResolvedValue({}),
   getCollectionsByOwner: vi.fn().mockResolvedValue({ data: [{ contract: "0xnewcol" }] }),
   saveCollectionEntry: vi.fn().mockResolvedValue({ labels: {} }),
   saveCategoryMap: vi.fn().mockResolvedValue({ map: {} }),

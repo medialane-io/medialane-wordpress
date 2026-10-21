@@ -14,7 +14,7 @@ class Settings {
 	const OPTION_CATEGORY_MAP = 'tokenize_content_category_collections';
 	const OPTION_LICENSE_DEFAULT = 'tokenize_content_license_default';
 	const OPTION_AI_POLICY_DEFAULT = 'tokenize_content_ai_policy_default';
-	const OPTION_CONTENT_SCOPE   = 'tokenize_content_content_scope'; // 'excerpt' | 'full'
+	const OPTION_CONTENT_SCOPE   = 'tokenize_content_content_scope';
 	const CAP_TOKENIZE = 'tokenize_content_tokenize_posts';
 	const GROUP_KEY      = 'tokenize-content-key';
 	const GROUP_DEFAULTS = 'tokenize-content-defaults';
@@ -40,7 +40,7 @@ class Settings {
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'siteName'           => get_bloginfo( 'name' ),
-			'collectionContract' => self::get_collection_contract(),
+			'collectionContract' => self::get_default_collection(),
 			'walletAddress'      => self::get_wallet_address(),
 		) );
 	}
@@ -103,26 +103,14 @@ class Settings {
 		update_option( self::OPTION_WALLET, self::sanitize_address( $address ) );
 	}
 
-	public static function get_collection_contract(): string {
+	public static function get_default_collection(): string {
 		return (string) get_option( self::OPTION_COLLECTION, '' );
 	}
 
-	public static function save_collection_contract( string $address ) {
+	public static function set_default_collection( string $address ) {
 		update_option( self::OPTION_COLLECTION, self::sanitize_address( $address ) );
 	}
 
-	public static function get_default_collection(): string {
-		return self::get_collection_contract();
-	}
-
-	public static function set_default_collection( string $address ) {
-		self::save_collection_contract( $address );
-	}
-
-	// Labels are the only thing about a collection this plugin is entitled to
-	// remember locally — a name has no on-chain meaning. Whether a collection
-	// actually exists is never decided from this option; see
-	// fetch_live_collections().
 	public static function get_collection_labels(): array {
 		$labels = get_option( self::OPTION_COLLECTION_LABELS, array() );
 		return is_array( $labels ) ? $labels : array();
@@ -141,10 +129,6 @@ class Settings {
 		}
 	}
 
-	// The chain, via medialane-backend's indexer, is the only authority on
-	// which collections actually exist for this site's wallet. This never
-	// reads from OPTION_COLLECTION_LABELS to decide existence — only to
-	// attach a friendly name to a contract the backend already confirmed.
 	public static function fetch_live_collections(): array {
 		$result = self::fetch_live_collections_checked();
 		return is_wp_error( $result ) ? array() : $result;
@@ -205,9 +189,6 @@ class Settings {
 		update_option( self::OPTION_CATEGORY_MAP, $sanitized );
 	}
 
-	// $live_collections must come from fetch_live_collections() — a category
-	// mapping or stored default pointing at a contract that isn't in that
-	// list (deleted, renamed, never real) is never trusted.
 	public static function resolve_collection_for_post( int $post_id, array $live_collections ): string {
 		$valid = wp_list_pluck( $live_collections, 'contract' );
 		$find  = function ( string $wanted ) use ( $valid ): string {
@@ -284,7 +265,6 @@ class Settings {
 			<p>
 				<?php
 				printf(
-					/* translators: %s: link to Medialane account console */
 					esc_html__( 'Generate an API key at %s, then paste it below.', 'tokenize-content' ),
 					'<a href="https://portal.medialane.io/account" target="_blank" rel="noopener noreferrer">portal.medialane.io/account</a>'
 				);
@@ -326,7 +306,6 @@ class Settings {
 			?>
 
 			<p><?php echo wp_kses_post( sprintf(
-				/* translators: %s: link to the Posts list */
 				__( 'Setup is complete. Head to %s to tokenize a post.', 'tokenize-content' ),
 				'<a href="' . esc_url( admin_url( 'edit.php' ) ) . '">' . esc_html__( 'Posts', 'tokenize-content' ) . '</a>'
 			) ); ?></p>

@@ -1,6 +1,3 @@
-// The platform's canonical license presets, expanded into the canonical trait
-// set — third parties (and the remix/marketplace flows on medialane-backend)
-// read License terms from these exact attributes, never from a free-form string.
 const LICENSE_PRESETS = {
   "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" },
   "CC BY": { commercialUse: "Yes", derivatives: "Allowed", attribution: "Required" },
@@ -16,9 +13,6 @@ const LICENSE_PRESETS = {
 
 export const LICENSE_PRESET_IDS = [...Object.keys(LICENSE_PRESETS), "Custom"];
 
-// Custom has no expansion: its Commercial Use/Derivatives/Attribution are
-// author-set, and we don't collect per-trait overrides, so we don't
-// fabricate values for traits nobody actually chose.
 export function buildLicenseAttributes(preset, aiPolicy, territory = "Worldwide") {
   const attributes = [{ trait_type: "License", value: preset }];
   const expansion = LICENSE_PRESETS[preset];

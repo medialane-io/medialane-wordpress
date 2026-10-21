@@ -11,8 +11,6 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 		global $wp_rest_server;
 		$this->server = $wp_rest_server = new \WP_REST_Server();
 		do_action( 'rest_api_init' );
-		// Normally granted by register_activation_hook on plugin activation;
-		// the test suite never activates the plugin, so grant it explicitly.
 		Settings::grant_default_capability();
 	}
 
@@ -33,8 +31,6 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 		$request  = new WP_REST_Request( 'POST', '/tokenize-content/v1/intents/mint' );
 		$response = $this->server->dispatch( $request );
 
-		// WP's own rest_authorization_required_code() returns 403 for a
-		// logged-in-but-unauthorized user and reserves 401 for anonymous ones.
 		$this->assertSame( 403, $response->get_status() );
 	}
 
@@ -90,9 +86,6 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 	public function test_a_user_with_the_capability_cannot_mark_a_post_they_cannot_edit() {
 		$post_id = $this->factory->post->create();
 
-		// Subscribers have no edit_posts capability at all by default, so this
-		// exercises the per-post ownership check independent of the tokenize
-		// capability itself.
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'subscriber' ) ) );
 		get_role( 'subscriber' )->add_cap( Settings::CAP_TOKENIZE );
 
@@ -322,5 +315,14 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 
 		$this->assertSame( 502, $response->get_status() );
 		remove_all_filters( 'pre_http_request' );
+	}
+
+	public function test_routes_nothing_in_the_ui_uses_are_not_registered() {
+		$routes = array_keys( $this->server->get_routes() );
+
+		$this->assertNotContains( '/tokenize-content/v1/settings/collection', $routes );
+		foreach ( $routes as $route ) {
+			$this->assertStringStartsNotWith( '/tokenize-content/v1/tokens/', $route );
+		}
 	}
 }

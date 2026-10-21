@@ -11,10 +11,6 @@ function chunk(array, size) {
   return out;
 }
 
-// Posts can be routed to different collections (by category mapping in
-// Settings), so a batch can't just be one collectionContract anymore —
-// entries are grouped by their resolved collection first, then each
-// group is chunked and executed as its own batch.
 export async function tokenizeBulk(postIds, onProgress) {
   const data = window.tokenizeContentData;
   const { address, account } = await connectWallet();

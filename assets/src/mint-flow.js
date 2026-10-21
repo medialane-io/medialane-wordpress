@@ -36,9 +36,6 @@ function randomSalt() {
   return crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "");
 }
 
-// Deploys (or reuses, per business-provisioning's own lookup) a wallet tied
-// to the post author's registered email, so the minted asset lands there
-// instead of in whichever wallet the site admin happens to have connected.
 async function resolveAuthorWallet(authorEmail) {
   const { address, privateKey, publicKey } = generateInterimKeypair();
   const buildRes = await buildSponsoredDeploy({ ownerPubkey: publicKey, ownerAddress: address });
@@ -53,7 +50,6 @@ async function resolveAuthorWallet(authorEmail) {
   return provisionRes.data.walletAddress;
 }
 
-// Does not touch the chain or post meta — callers batch these together before executing.
 export async function prepareMint({ postId, title, body, image, license, aiPolicy, address, collectionContract, authorEmail }) {
   if (!authorEmail) {
     throw new Error(`Post ${postId}'s author has no registered email. Assign a valid author before tokenizing.`);
@@ -73,7 +69,6 @@ export async function prepareMint({ postId, title, body, image, license, aiPolic
   return { postId, license, calls: intentRes.data.calls };
 }
 
-// One on-chain transaction covers every entry, so they succeed or fail together.
 export async function executeMintBatch({ restUrl, nonce, account, address, collectionContract, entries }) {
   if (!collectionContract) {
     throw new Error("No collection configured. Connect a wallet in Medialane Settings first.");

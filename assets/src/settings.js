@@ -14,16 +14,12 @@ export async function pollForCollection(owner, attempts = 10) {
         return list[0].contractAddress;
       }
     } catch {
-      // Not indexed yet, or a transient error — keep polling until attempts run out.
     }
     await new Promise((r) => setTimeout(r, 3000));
   }
   return null;
 }
 
-// Creates a collection on-chain, waits for the indexer to pick it up, then
-// registers it under a label in Settings. Reused for the site's first
-// collection (Connect Wallet) and for every additional named collection.
 export async function createAndRegisterCollection(address, account, label) {
   const intentRes = await createCollectionIntent({ owner: address, name: label, symbol: "POST" });
   const calls = intentRes.data && intentRes.data.calls;
@@ -53,9 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
     button.textContent = "Connecting…";
     try {
       const { address } = await connectWallet();
-      // Saved immediately, not deferred to a form submit further down the
-      // page — otherwise a page reload before clicking a separate "Save
-      // Changes" button would show "Not connected" despite having connected.
       await saveWalletAddress(address);
       location.reload();
     } catch (err) {

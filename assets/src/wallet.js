@@ -7,10 +7,6 @@ export async function connectWallet() {
   if (!wallets || wallets.length === 0) {
     throw new Error("No Starknet wallet found. Install Ready or Braavos.");
   }
-  // get-starknet-core v4's StarknetWindowObject only exposes a raw request()
-  // method, not an .account with .execute() the way older versions did —
-  // WalletAccount.connect() is starknet.js's own bridge for exactly this,
-  // and requests account access from the wallet as part of connecting.
   const account = await WalletAccount.connect(new RpcProvider(), wallets[0]);
   if (!account?.address) {
     throw new Error("Wallet did not return an address.");
@@ -23,8 +19,6 @@ export async function signTypedData(account, typedData) {
   return stark.signatureToHexArray(signature);
 }
 
-// Used once, to authorize a newly provisioned author wallet's deployment.
-// Never persisted: the caller uses it immediately and lets it go out of scope.
 export function generateInterimKeypair() {
   const privateKeyBytes = ec.starkCurve.utils.randomPrivateKey();
   const privateKey = "0x" + Array.from(privateKeyBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -39,9 +33,6 @@ export async function signDeploymentWithInterimKey(privateKey, address, typedDat
   return stark.signatureToHexArray(signature);
 }
 
-// A transaction hash alone proves nothing was rejected before broadcast, not
-// that it landed on chain, and not that it succeeded once it did. Only a
-// confirmed, non-reverted receipt from the chain itself is authoritative.
 export async function waitForConfirmation(txHash, provider = new RpcProvider()) {
   const receipt = await provider.waitForTransaction(txHash);
   if (receipt.isReverted && receipt.isReverted()) {
@@ -61,8 +52,6 @@ function sameFelt(a, b) {
   }
 }
 
-// A batch mint emits one Transfer(from=0, to=recipient, tokenId) event per
-// call, on the collection contract, in the same order the calls executed.
 export function mintedTokenIdsFromReceipt(receipt, contract) {
   const tokenIds = [];
   for (const event of receipt.events ?? []) {

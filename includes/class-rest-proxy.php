@@ -72,20 +72,10 @@ class RestProxy {
 			},
 			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
 		) );
-		register_rest_route( self::NAMESPACE, '/tokens/(?P<contract>[a-zA-Z0-9x]+)/(?P<tokenId>[a-zA-Z0-9]+)', array(
-			'methods'             => 'GET',
-			'callback'            => array( __CLASS__, 'forward_get_token' ),
-			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
-		) );
 		register_rest_route( self::NAMESPACE, '/tokenize-data', array(
 			'methods'             => 'POST',
 			'callback'            => array( __CLASS__, 'tokenize_data' ),
 			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
-		) );
-		register_rest_route( self::NAMESPACE, '/settings/collection', array(
-			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'save_collection' ),
-			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
 		) );
 		register_rest_route( self::NAMESPACE, '/settings/wallet', array(
 			'methods'             => 'POST',
@@ -216,12 +206,6 @@ class RestProxy {
 		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
 	}
 
-	public static function save_collection( \WP_REST_Request $request ) {
-		$address = (string) $request->get_param( 'contract' );
-		Settings::save_collection_contract( $address );
-		return rest_ensure_response( array( 'contract' => Settings::get_collection_contract() ) );
-	}
-
 	public static function save_wallet( \WP_REST_Request $request ) {
 		$address = (string) $request->get_param( 'address' );
 		Settings::save_wallet_address( $address );
@@ -303,9 +287,6 @@ class RestProxy {
 			return new \WP_Error( 'tokenize_content_no_file', __( 'No file provided.', 'tokenize-content' ), array( 'status' => 400 ) );
 		}
 		$file = $files['file'];
-		// Sanitize the filename before it goes into a hand-built multipart header —
-		// it originates from the browser's File.name and could otherwise carry
-		// quotes/CRLF into the request we send upstream.
 		$filename = sanitize_file_name( $file['name'] );
 		$content_type = preg_match( '#^[a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+$#', $file['type'] ) ? $file['type'] : 'application/octet-stream';
 		$boundary = wp_generate_password( 24, false );
@@ -321,20 +302,6 @@ class RestProxy {
 			),
 			'body'    => $body,
 			'timeout' => 60,
-		) );
-		return self::relay( $response );
-	}
-
-	public static function forward_get_token( \WP_REST_Request $request ) {
-		$key = self::api_key_or_error();
-		if ( is_wp_error( $key ) ) {
-			return $key;
-		}
-		$contract = $request->get_param( 'contract' );
-		$token_id = $request->get_param( 'tokenId' );
-		$response = wp_remote_get( TOKENIZE_CONTENT_BACKEND_URL . "/v1/tokens/{$contract}/{$token_id}", array(
-			'headers' => array( 'x-api-key' => $key ),
-			'timeout' => 15,
 		) );
 		return self::relay( $response );
 	}

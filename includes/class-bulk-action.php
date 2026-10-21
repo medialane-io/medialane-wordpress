@@ -41,7 +41,6 @@ class BulkAction {
 		printf(
 			'<div class="notice notice-info"><p>%s</p></div>',
 			esc_html( sprintf(
-				/* translators: %d: number of published posts not yet tokenized. */
 				_n(
 					'%d published post has not been tokenized yet with Medialane. Select it below and use the "Tokenize with Medialane" bulk action.',
 					'%d published posts have not been tokenized yet with Medialane. Select them below and use the "Tokenize with Medialane" bulk action.',
@@ -62,7 +61,7 @@ class BulkAction {
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
-			'collectionContract' => Settings::get_collection_contract(),
+			'collectionContract' => Settings::get_default_collection(),
 			'contentScope'       => Settings::get_content_scope(),
 			'licenseDefault'     => Settings::get_license_default(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),

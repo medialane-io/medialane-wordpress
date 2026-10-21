@@ -48,10 +48,6 @@ export function syncCollectionTx(txHash) {
   return request("/collections/sync-tx", { method: "POST", body: JSON.stringify({ txHash }) });
 }
 
-export function saveCollectionContract(contract) {
-  return request("/settings/collection", { method: "POST", body: JSON.stringify({ contract }) });
-}
-
 export function getCollectionsByOwner(owner) {
   return request(`/collections?owner=${encodeURIComponent(owner)}`, { method: "GET" });
 }
@@ -82,12 +78,4 @@ export function buildSponsoredDeploy(params) {
 
 export function provisionRecipientWallet(params) {
   return request("/business/provisioning", { method: "POST", body: JSON.stringify(params) });
-}
-
-export async function getToken(contract, tokenId) {
-  try {
-    return await request(`/tokens/${contract}/${tokenId}`, { method: "GET" });
-  } catch {
-    return null;
-  }
 }

@@ -56,8 +56,6 @@ class Test_Asset_Badge extends WP_UnitTestCase {
 			'token_id' => '42', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY-SA',
 		) );
 
-		// Outside a singular post's main loop (no query context set up here),
-		// the filter must not append anything.
 		$this->assertSame( 'Original content', AssetBadge::append_to_content( 'Original content' ) );
 	}
 
