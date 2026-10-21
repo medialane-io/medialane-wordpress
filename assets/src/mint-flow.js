@@ -5,7 +5,7 @@ import {
   markMinting, markBroadcast, markMinted, markError,
 } from "./api.js";
 import { ensureSession, forgetSession } from "./session.js";
-import { buildLicenseAttributes } from "./license.js";
+import { buildLicenseAttributes, buildPublicationAttributes } from "./license.js";
 import { __, sprintf } from "@wordpress/i18n";
 
 const SIGN_IN_REQUIRED = "invalid_request_auth";
@@ -14,7 +14,7 @@ const wentWrong = () => __("Something went wrong", "tokenize-content");
 
 export { markError };
 
-export async function prepareMint({ postId, title, body, hasImage, license, licenses, aiPolicy, address, collectionId, authorEmail }) {
+export async function prepareMint({ postId, title, body, content, author, publisher, url, hasImage, license, licenses, aiPolicy, address, collectionId, authorEmail }) {
   if (!authorEmail) {
     throw new Error(sprintf(__("Post %d's author has no registered email. Assign a valid author before tokenizing.", "tokenize-content"), postId));
   }
@@ -25,8 +25,9 @@ export async function prepareMint({ postId, title, body, hasImage, license, lice
   const metadata = await uploadJson({
     name: title,
     description: body,
+    content: content || undefined,
     image: image || undefined,
-    attributes: buildLicenseAttributes(license, aiPolicy, licenses),
+    attributes: [...buildPublicationAttributes({ author, publisher, url }), ...buildLicenseAttributes(license, aiPolicy, licenses)],
   });
 
   const intent = await createMintIntent({

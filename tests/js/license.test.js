@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLicenseAttributes } from "../../assets/src/license.js";
+import { buildLicenseAttributes, buildPublicationAttributes } from "../../assets/src/license.js";
 
 const licenses = {
   "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" },
@@ -54,5 +54,20 @@ describe("buildLicenseAttributes", () => {
 
   it("omits the AI policy trait when none is given", () => {
     expect(buildLicenseAttributes("CC0", undefined, licenses).some((a) => a.trait_type === "AI Policy")).toBe(false);
+  });
+});
+
+describe("buildPublicationAttributes", () => {
+  it("marks the post as a publication with its author, publisher and address", () => {
+    expect(buildPublicationAttributes({ author: "Ana", publisher: "Ambrosia", url: "https://ambrosia.com.br/post" })).toEqual([
+      { trait_type: "IP Type", value: "Publications" },
+      { trait_type: "Author", value: "Ana" },
+      { trait_type: "Publisher", value: "Ambrosia" },
+      { trait_type: "Website", value: "https://ambrosia.com.br/post" },
+    ]);
+  });
+
+  it("leaves out what the post does not have", () => {
+    expect(buildPublicationAttributes({})).toEqual([{ trait_type: "IP Type", value: "Publications" }]);
   });
 });

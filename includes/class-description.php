@@ -18,6 +18,10 @@ class Description {
 		return 'excerpt' === $scope ? wp_trim_words( $text, self::EXCERPT_WORDS, '' ) : $text;
 	}
 
+	public static function markdown( \WP_Post $post ): string {
+		return Markdown::from_html( self::render( $post ) );
+	}
+
 	private static function render( \WP_Post $post ): string {
 		$previous = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
 		setup_postdata( $post );
