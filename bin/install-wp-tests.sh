@@ -8,9 +8,6 @@ DB_HOST=${4-127.0.0.1}
 WP_VERSION=${5-latest}
 
 WP_TESTS_DIR=${WP_TESTS_DIR-/tmp/wordpress-tests-lib}
-# wp-tests-config-sample.php hardcodes ABSPATH to dirname(__FILE__) . '/src/',
-# i.e. it expects WP core to live inside $WP_TESTS_DIR/src, not a sibling
-# directory — WP_CORE_DIR defaults to match that rather than a separate path.
 WP_CORE_DIR=${WP_CORE_DIR-$WP_TESTS_DIR/src}
 
 download() {
