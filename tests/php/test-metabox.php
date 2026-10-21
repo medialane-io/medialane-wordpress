@@ -76,4 +76,15 @@ class Test_Metabox extends Tokenize_Test_Case {
 		$this->assertStringNotContainsString( 'tokenize-content-tokenize-btn', $html );
 		$this->assertStringContainsString( 'Only published posts without a password can be tokenized.', $html );
 	}
+
+	public function test_enqueue_hands_the_client_the_license_terms() {
+		$GLOBALS['post'] = get_post( $this->factory->post->create() );
+
+		Metabox::enqueue( 'post.php' );
+
+		$data = (string) wp_scripts()->get_data( 'tokenize-content-metabox', 'data' );
+		$this->assertStringContainsString( '"licenses"', $data );
+		$this->assertStringContainsString( 'Share-Alike', $data );
+		unset( $GLOBALS['post'] );
+	}
 }

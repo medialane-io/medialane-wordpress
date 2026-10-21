@@ -12,7 +12,7 @@ const SAVE_FAILED = "Minted on chain, but this site could not save it. Use Check
 
 export { markError };
 
-export async function prepareMint({ postId, title, body, hasImage, license, aiPolicy, address, collectionId, authorEmail }) {
+export async function prepareMint({ postId, title, body, hasImage, license, licenses, aiPolicy, address, collectionId, authorEmail }) {
   if (!authorEmail) {
     throw new Error(`Post ${postId}'s author has no registered email. Assign a valid author before tokenizing.`);
   }
@@ -24,7 +24,7 @@ export async function prepareMint({ postId, title, body, hasImage, license, aiPo
     name: title,
     description: body,
     image: image || undefined,
-    attributes: buildLicenseAttributes(license, aiPolicy),
+    attributes: buildLicenseAttributes(license, aiPolicy, licenses),
   });
 
   const intent = await createMintIntent({

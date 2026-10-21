@@ -14,7 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'TOKENIZE_CONTENT_PLUGIN_VERSION', '0.2.0' );
+$tokenize_content_header = get_file_data( __FILE__, array( 'Version' => 'Version' ) );
+define( 'TOKENIZE_CONTENT_PLUGIN_VERSION', $tokenize_content_header['Version'] );
 define( 'TOKENIZE_CONTENT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TOKENIZE_CONTENT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'TOKENIZE_CONTENT_BACKEND_URL', 'https://api.medialane.io' );

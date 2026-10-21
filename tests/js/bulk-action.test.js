@@ -40,7 +40,7 @@ function serverPosts(posts) {
 beforeEach(() => {
   vi.resetAllMocks();
   global.window = {
-    tokenizeContentData: { licenseDefault: "CC BY-SA", aiPolicyDefault: "Allowed", walletAddress: "0xowner" },
+    tokenizeContentData: { licenseDefault: "CC BY-SA", aiPolicyDefault: "Allowed", walletAddress: "0xowner", licenses: { "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" } } },
   };
   wallet.connectWallet.mockResolvedValue({ address: "0xowner", account: {} });
   wallet.signTypedData.mockResolvedValue(["0x1", "0x2"]);

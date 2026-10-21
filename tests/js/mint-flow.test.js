@@ -52,8 +52,10 @@ beforeEach(() => {
   session.ensureSession.mockResolvedValue(undefined);
 });
 
+const licenses = { "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" } };
+
 const base = {
-  postId: 42, title: "A Post", body: "Body", hasImage: false, license: "CC BY-SA",
+  licenses, postId: 42, title: "A Post", body: "Body", hasImage: false, license: "CC BY-SA",
   address: "0xowner", collectionId: "7", authorEmail: "author@example.com",
 };
 
@@ -78,6 +80,7 @@ describe("prepareMint", () => {
     expect(payload.license).toBeUndefined();
     expect(payload.attributes).toEqual(expect.arrayContaining([
       { trait_type: "License", value: "CC BY-SA" },
+      { trait_type: "Derivatives", value: "Share-Alike" },
       { trait_type: "AI Policy", value: "Training Only" },
     ]));
   });

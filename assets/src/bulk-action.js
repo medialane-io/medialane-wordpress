@@ -50,7 +50,7 @@ export async function tokenizeBulk(postIds, onProgress) {
       }
       const entry = await prepareMint({
         postId, title: post.title, body: post.description, hasImage: post.hasImage,
-        license: data.licenseDefault, aiPolicy: data.aiPolicyDefault,
+        license: data.licenseDefault, licenses: data.licenses, aiPolicy: data.aiPolicyDefault,
         address, collectionId: post.collectionId, authorEmail: post.authorEmail,
       });
       if (!groups.has(post.collectionId)) groups.set(post.collectionId, { contract: post.collectionContract, entries: [] });

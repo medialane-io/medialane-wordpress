@@ -54,7 +54,7 @@ class Metabox {
 					<p>
 						<label for="tokenize-content-license"><?php esc_html_e( 'License', 'tokenize-content' ); ?></label>
 						<select id="tokenize-content-license">
-							<?php foreach ( Settings::LICENSE_PRESETS as $preset ) : ?>
+							<?php foreach ( Settings::license_presets() as $preset ) : ?>
 								<option value="<?php echo esc_attr( $preset ); ?>" <?php selected( Settings::get_license_default(), $preset ); ?>><?php echo esc_html( $preset ); ?></option>
 							<?php endforeach; ?>
 						</select>
@@ -81,6 +81,7 @@ class Metabox {
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
+			'licenses'           => Settings::license_terms(),
 			'postId'             => $post ? $post->ID : 0,
 		) );
 	}

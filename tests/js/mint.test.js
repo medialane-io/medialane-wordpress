@@ -46,7 +46,7 @@ function pageElements({ license = "All Rights Reserved", select = null } = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  global.window = { tokenizeContentData: { aiPolicyDefault: "Allowed", walletAddress: "0xowner" } };
+  global.window = { tokenizeContentData: { aiPolicyDefault: "Allowed", walletAddress: "0xowner", licenses: {} } };
   pageElements();
   wallet.connectWallet.mockResolvedValue({ address: "0xowner", account: {} });
   wallet.signTypedData.mockResolvedValue(["0x1", "0x2"]);

@@ -20,11 +20,28 @@ class Settings {
 	const GROUP_KEY      = 'tokenize-content-key';
 	const GROUP_DEFAULTS = 'tokenize-content-defaults';
 
-	const LICENSE_PRESETS = array(
-		'CC BY-SA', 'CC BY', 'CC BY-NC', 'CC BY-ND', 'CC BY-NC-SA', 'CC BY-NC-ND',
-		'CC0', 'MIT', 'Apache 2.0', 'All Rights Reserved', 'Custom',
+	const LICENSES = array(
+		'CC BY-SA'            => array( 'commercialUse' => 'Yes', 'derivatives' => 'Share-Alike', 'attribution' => 'Required' ),
+		'CC BY'               => array( 'commercialUse' => 'Yes', 'derivatives' => 'Allowed', 'attribution' => 'Required' ),
+		'CC BY-NC'            => array( 'commercialUse' => 'No', 'derivatives' => 'Allowed', 'attribution' => 'Required' ),
+		'CC BY-ND'            => array( 'commercialUse' => 'Yes', 'derivatives' => 'Not Allowed', 'attribution' => 'Required' ),
+		'CC BY-NC-SA'         => array( 'commercialUse' => 'No', 'derivatives' => 'Share-Alike', 'attribution' => 'Required' ),
+		'CC BY-NC-ND'         => array( 'commercialUse' => 'No', 'derivatives' => 'Not Allowed', 'attribution' => 'Required' ),
+		'CC0'                 => array( 'commercialUse' => 'Yes', 'derivatives' => 'Allowed', 'attribution' => 'Not Required' ),
+		'MIT'                 => array( 'commercialUse' => 'Yes', 'derivatives' => 'Allowed', 'attribution' => 'Required' ),
+		'Apache 2.0'          => array( 'commercialUse' => 'Yes', 'derivatives' => 'Allowed', 'attribution' => 'Required' ),
+		'All Rights Reserved' => array( 'commercialUse' => 'No', 'derivatives' => 'Not Allowed', 'attribution' => 'Required' ),
+		'Custom'              => null,
 	);
 	const AI_POLICIES = array( 'Allowed', 'Training Only', 'Not Allowed' );
+
+	public static function license_presets(): array {
+		return array_keys( self::LICENSES );
+	}
+
+	public static function license_terms(): array {
+		return array_filter( self::LICENSES );
+	}
 
 	public static function register() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_page' ) );
@@ -349,7 +366,7 @@ class Settings {
 						<th><label for="tokenize_content_license_default"><?php esc_html_e( 'Default license', 'tokenize-content' ); ?></label></th>
 						<td>
 							<select id="tokenize_content_license_default" name="<?php echo esc_attr( self::OPTION_LICENSE_DEFAULT ); ?>">
-								<?php foreach ( self::LICENSE_PRESETS as $preset ) : ?>
+								<?php foreach ( self::license_presets() as $preset ) : ?>
 									<option value="<?php echo esc_attr( $preset ); ?>" <?php selected( self::get_license_default(), $preset ); ?>><?php echo esc_html( $preset ); ?></option>
 								<?php endforeach; ?>
 							</select>

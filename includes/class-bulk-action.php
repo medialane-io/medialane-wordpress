@@ -63,6 +63,7 @@ class BulkAction {
 			'walletAddress'      => Settings::get_wallet_address(),
 			'licenseDefault'     => Settings::get_license_default(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
+			'licenses'           => Settings::license_terms(),
 		) );
 	}
 }

@@ -371,4 +371,44 @@ class Test_Settings extends Tokenize_Test_Case {
 
 		$this->assertCount( 1, Settings::fetch_live_collections() );
 	}
+
+	public function test_every_license_except_custom_defines_the_three_terms() {
+		foreach ( Settings::LICENSES as $preset => $terms ) {
+			if ( 'Custom' === $preset ) {
+				$this->assertNull( $terms );
+				continue;
+			}
+			$this->assertSame( array( 'commercialUse', 'derivatives', 'attribution' ), array_keys( $terms ), $preset );
+			foreach ( $terms as $value ) {
+				$this->assertNotSame( '', $value, $preset );
+			}
+		}
+	}
+
+	public function test_known_license_terms_match_the_platform_s_trait_values() {
+		$this->assertSame( array( 'commercialUse' => 'Yes', 'derivatives' => 'Share-Alike', 'attribution' => 'Required' ), Settings::LICENSES['CC BY-SA'] );
+		$this->assertSame( array( 'commercialUse' => 'No', 'derivatives' => 'Not Allowed', 'attribution' => 'Required' ), Settings::LICENSES['All Rights Reserved'] );
+		$this->assertSame( 'Not Required', Settings::LICENSES['CC0']['attribution'] );
+	}
+
+	public function test_license_terms_for_the_client_leave_out_custom() {
+		$terms = Settings::license_terms();
+
+		$this->assertArrayHasKey( 'CC BY-SA', $terms );
+		$this->assertArrayNotHasKey( 'Custom', $terms );
+	}
+
+	public function address_vectors() {
+		$vectors = json_decode( file_get_contents( dirname( __DIR__ ) . '/fixtures/addresses.json' ), true );
+		return array_map( function ( $vector ) {
+			return array( $vector['a'], $vector['b'], $vector['same'] );
+		}, $vectors );
+	}
+
+	/**
+	 * @dataProvider address_vectors
+	 */
+	public function test_canonical_address_agrees_with_the_shared_vectors( $a, $b, $same ) {
+		$this->assertSame( $same, Settings::canonical_address( $a ) === Settings::canonical_address( $b ) );
+	}
 }

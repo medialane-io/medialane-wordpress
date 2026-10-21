@@ -1,0 +1,9 @@
+[
+  { "a": "0xabc", "b": "0xABC", "same": true },
+  { "a": "0x0abc", "b": "0xabc", "same": true },
+  { "a": "0x00000000000000000000000000000000000000000000000000000000000abc", "b": "0xabc", "same": true },
+  { "a": "0x0", "b": "0x00", "same": true },
+  { "a": " 0xABC ", "b": "0xabc", "same": true },
+  { "a": "0xabc", "b": "0xabd", "same": false },
+  { "a": "abc", "b": "0xabc", "same": false }
+]

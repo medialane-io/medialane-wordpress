@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { sameAddress, assertSiteWallet } from "../../assets/src/site-wallet.js";
+import vectors from "../fixtures/addresses.json";
 
 describe("sameAddress", () => {
+  it.each(vectors)("compares $a with $b as $same (the same vectors the PHP side is tested with)", ({ a, b, same }) => {
+    expect(sameAddress(a, b)).toBe(same);
+  });
+
   it("ignores case and leading zeros", () => {
     expect(sameAddress("0x0abc", "0xABC")).toBe(true);
     expect(sameAddress("0x00000000000000000000000000000000000000000000000000000000000abc", "0xabc")).toBe(true);

@@ -85,6 +85,14 @@ class Test_Bulk_Action extends Tokenize_Test_Case {
 		$this->assertStringNotContainsString( 'SECRET BODY TEXT', $data );
 	}
 
+	public function test_enqueue_hands_the_client_the_license_terms() {
+		BulkAction::enqueue( 'edit.php' );
+
+		$data = (string) wp_scripts()->get_data( 'tokenize-content-bulk-action', 'data' );
+		$this->assertStringContainsString( '"licenses"', $data );
+		$this->assertStringContainsString( 'Share-Alike', $data );
+	}
+
 	private function capture_notice(): string {
 		ob_start();
 		BulkAction::render_pending_notice();
