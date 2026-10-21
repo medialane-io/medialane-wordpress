@@ -14,21 +14,22 @@ export async function tokenizePost(postId) {
   assertSiteWallet(address, data.walletAddress);
   const { posts } = await getTokenizeData([postId]);
   const post = posts[postId];
-  if (post.error) {
-    throw new Error(post.error);
+  if (!post || post.error) {
+    throw new Error(post ? post.error : "No data was returned for this post.");
   }
-  const collectionSelect = document.getElementById("tokenize-content-collection");
-  const collectionContract = (collectionSelect && collectionSelect.value) || post.collectionContract || data.collectionContract;
+
+  const chosen = document.getElementById("tokenize-content-collection")?.selectedOptions[0];
+  const collectionId = chosen ? chosen.dataset.collectionId : post.collectionId;
+  const collectionContract = chosen ? chosen.value : post.collectionContract;
+  if (!collectionId) {
+    throw new Error("No collection configured.");
+  }
 
   const entry = await prepareMint({
-    postId, title: post.title, body: post.description, image: post.image, license, address,
-    collectionContract, authorEmail: post.authorEmail,
-    aiPolicy: data.aiPolicyDefault,
+    postId, title: post.title, body: post.description, hasImage: post.hasImage, license,
+    aiPolicy: data.aiPolicyDefault, address, collectionId, authorEmail: post.authorEmail,
   });
-  const [result] = await executeMintBatch({
-    restUrl: data.restUrl, nonce: data.nonce, account, address,
-    collectionContract, entries: [entry],
-  });
+  const [result] = await executeMintBatch({ account, address, collectionContract, entries: [entry] });
   if (result.error) {
     throw new Error(result.error);
   }
@@ -56,12 +57,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const checkBtn = document.getElementById("tokenize-content-check-btn");
   if (checkBtn) {
     checkBtn.addEventListener("click", async () => {
-      const data = window.tokenizeContentData;
       checkBtn.disabled = true;
       checkBtn.textContent = "Checking…";
       await resumeMint({
-        restUrl: data.restUrl,
-        nonce: data.nonce,
         postId: document.getElementById("tokenize-content-metabox").dataset.postId,
         txHash: checkBtn.dataset.txHash,
         contract: checkBtn.dataset.contract,

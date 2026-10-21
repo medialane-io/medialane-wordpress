@@ -7,54 +7,103 @@ vi.mock("../../assets/src/wallet.js", () => ({
 vi.mock("../../assets/src/api.js", () => ({
   createCollectionIntent: vi.fn().mockResolvedValue({ data: { calls: [{ contractAddress: "0xfactory" }] } }),
   syncCollectionTx: vi.fn().mockResolvedValue({}),
-  getCollectionsByOwner: vi.fn().mockResolvedValue({ data: [{ contract: "0xnewcol" }] }),
+  getCollectionsByOwner: vi.fn(),
   saveCollectionEntry: vi.fn().mockResolvedValue({ labels: {} }),
   saveCategoryMap: vi.fn().mockResolvedValue({ map: {} }),
   saveWalletAddress: vi.fn().mockResolvedValue({ address: "0xowner" }),
 }));
 
-const { pollForCollection, createAndRegisterCollection, collectCategoryMap } = await import("../../assets/src/settings.js");
+const { pollForNewCollection, createAndRegisterCollection, collectCategoryMap } = await import("../../assets/src/settings.js");
 
-describe("pollForCollection", () => {
-  beforeEach(() => {
-    global.window = { tokenizeContentData: { restUrl: "/wp-json/tokenize-content/v1", nonce: "abc" } };
-  });
+describe("pollForNewCollection", () => {
+  const listing = (...contracts) => ({ data: contracts.map((contractAddress, i) => ({ contractAddress, collectionId: String(i + 1) })) });
 
-  it("returns the first collection's real contractAddress field once the list is non-empty", async () => {
+  it("returns the collection that was not there before, even when older ones are listed", async () => {
     const { getCollectionsByOwner } = await import("../../assets/src/api.js");
     getCollectionsByOwner
       .mockReset()
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({ data: [{ contractAddress: "0xcol" }] });
+      .mockResolvedValueOnce(listing("0xold"))
+      .mockResolvedValueOnce(listing("0xnew", "0xold"));
 
-    const result = await pollForCollection("0xowner", 2);
-    expect(result).toBe("0xcol");
-  }, 10000);
+    const result = await pollForNewCollection("0xowner", ["0xold"], { attempts: 3, intervalMs: 0 });
+
+    expect(result).toBe("0xnew");
+  });
+
+  it("matches known collections regardless of address formatting", async () => {
+    const { getCollectionsByOwner } = await import("../../assets/src/api.js");
+    getCollectionsByOwner.mockReset().mockResolvedValue(listing("0x000OLD"));
+
+    const result = await pollForNewCollection("0xowner", ["0xold"], { attempts: 2, intervalMs: 0 });
+
+    expect(result).toBeNull();
+  });
 
   it("keeps polling past a transient error instead of aborting", async () => {
     const { getCollectionsByOwner } = await import("../../assets/src/api.js");
     getCollectionsByOwner
       .mockReset()
       .mockRejectedValueOnce(new Error("upstream down"))
-      .mockResolvedValueOnce({ data: [{ contractAddress: "0xcol" }] });
+      .mockResolvedValueOnce(listing("0xnew"));
 
-    const result = await pollForCollection("0xowner", 2);
-    expect(result).toBe("0xcol");
-  }, 10000);
+    const result = await pollForNewCollection("0xowner", [], { attempts: 2, intervalMs: 0 });
+
+    expect(result).toBe("0xnew");
+  });
+
+  it("gives up with null when nothing new appears", async () => {
+    const { getCollectionsByOwner } = await import("../../assets/src/api.js");
+    getCollectionsByOwner.mockReset().mockResolvedValue(listing("0xold"));
+
+    expect(await pollForNewCollection("0xowner", ["0xold"], { attempts: 3, intervalMs: 0 })).toBeNull();
+    expect(getCollectionsByOwner).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe("createAndRegisterCollection", () => {
-  it("creates the on-chain collection, waits for it to index, and registers it under the given label", async () => {
+  beforeEach(async () => {
+    const { getCollectionsByOwner, createCollectionIntent, saveCollectionEntry } = await import("../../assets/src/api.js");
     const { executeCalls } = await import("../../assets/src/wallet.js");
-    const { createCollectionIntent, saveCollectionEntry, getCollectionsByOwner } = await import("../../assets/src/api.js");
-    getCollectionsByOwner.mockReset().mockResolvedValue({ data: [{ contractAddress: "0xnewcol" }] });
+    getCollectionsByOwner.mockReset();
+    createCollectionIntent.mockClear();
+    saveCollectionEntry.mockClear();
+    executeCalls.mockClear();
+  });
 
-    const contract = await createAndRegisterCollection("0xowner", {}, "Politics");
+  it("labels the newly created collection, not an older one that is listed first", async () => {
+    const { getCollectionsByOwner, createCollectionIntent, saveCollectionEntry } = await import("../../assets/src/api.js");
+    const { executeCalls } = await import("../../assets/src/wallet.js");
+    getCollectionsByOwner
+      .mockResolvedValueOnce({ data: [{ contractAddress: "0xold", collectionId: "1" }] })
+      .mockResolvedValueOnce({ data: [{ contractAddress: "0xold", collectionId: "1" }] })
+      .mockResolvedValue({ data: [{ contractAddress: "0xnew", collectionId: "2" }, { contractAddress: "0xold", collectionId: "1" }] });
+
+    const contract = await createAndRegisterCollection("0xowner", {}, "Politics", { intervalMs: 0 });
 
     expect(createCollectionIntent).toHaveBeenCalledWith(expect.objectContaining({ owner: "0xowner", name: "Politics" }));
     expect(executeCalls).toHaveBeenCalled();
-    expect(saveCollectionEntry).toHaveBeenCalledWith({ contract: "0xnewcol", label: "Politics" });
-    expect(contract).toBe("0xnewcol");
+    expect(saveCollectionEntry).toHaveBeenCalledWith({ contract: "0xnew", label: "Politics" });
+    expect(contract).toBe("0xnew");
+  });
+
+  it("does not spend anything on chain when the existing collections cannot be read", async () => {
+    const { getCollectionsByOwner, createCollectionIntent } = await import("../../assets/src/api.js");
+    const { executeCalls } = await import("../../assets/src/wallet.js");
+    getCollectionsByOwner.mockRejectedValue(new Error("upstream down"));
+
+    await expect(createAndRegisterCollection("0xowner", {}, "Politics", { intervalMs: 0 })).rejects.toThrow("upstream down");
+    expect(createCollectionIntent).not.toHaveBeenCalled();
+    expect(executeCalls).not.toHaveBeenCalled();
+  });
+
+  it("saves no label when the new collection never shows up", async () => {
+    const { getCollectionsByOwner, saveCollectionEntry } = await import("../../assets/src/api.js");
+    getCollectionsByOwner.mockResolvedValue({ data: [{ contractAddress: "0xold", collectionId: "1" }] });
+
+    const contract = await createAndRegisterCollection("0xowner", {}, "Politics", { attempts: 2, intervalMs: 0 });
+
+    expect(contract).toBeNull();
+    expect(saveCollectionEntry).not.toHaveBeenCalled();
   });
 });
 

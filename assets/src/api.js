@@ -1,3 +1,18 @@
+let session = "";
+
+export function setSession(token) {
+  session = token || "";
+}
+
+export class ApiError extends Error {
+  constructor(message, { status, code } = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 function base() {
   return (window.tokenizeContentData && window.tokenizeContentData.restUrl) || "/wp-json/tokenize-content/v1";
 }
@@ -6,76 +21,50 @@ function nonce() {
   return (window.tokenizeContentData && window.tokenizeContentData.nonce) || "";
 }
 
+export function rpcConfig() {
+  return { nodeUrl: `${base()}/rpc`, headers: { "X-WP-Nonce": nonce() } };
+}
+
 async function request(path, opts = {}) {
   const res = await fetch(`${base()}${path}`, {
     ...opts,
     headers: {
       "X-WP-Nonce": nonce(),
-      ...(opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+      ...(session ? { "X-Tokenize-Session": session } : {}),
+      ...(opts.body ? { "Content-Type": "application/json" } : {}),
       ...(opts.headers || {}),
     },
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(body.message || body.error || `Medialane request failed (${res.status})`);
+    throw new ApiError(body.message || body.error || `Request failed (${res.status})`, { status: res.status, code: body.code });
   }
   return body;
 }
 
-export function uploadJson(payload) {
-  return request("/metadata/upload", { method: "POST", body: JSON.stringify(payload) });
+function post(path, payload = {}) {
+  return request(path, { method: "POST", body: JSON.stringify(payload) });
 }
 
-export function uploadFile(file) {
-  const form = new FormData();
-  form.append("file", file, file.name);
-  return request("/metadata/upload-file", { method: "POST", body: form });
-}
+export const siwsNonce = (walletAddress) => post("/auth/siws/nonce", { walletAddress });
+export const siwsVerify = ({ walletAddress, nonce: value, signature }) => post("/auth/siws/verify", { walletAddress, nonce: value, signature });
 
-export function getTokenizeData(ids) {
-  return request("/tokenize-data", { method: "POST", body: JSON.stringify({ ids }) });
-}
+export const getTokenizeData = (ids) => post("/tokenize-data", { ids });
+export const uploadJson = (payload) => post("/metadata/upload", payload);
+export const uploadFeaturedImage = (postId) => post(`/posts/${postId}/featured-image`);
+export const provisionRecipientWallet = ({ email }) => post("/business/provisioning", { email });
+export const createMintIntent = (params) => post("/intents/mint", params);
+export const buildSponsoredInvoke = ({ intentIds }) => post("/paymaster/invoke/build", { intentIds });
+export const executeSponsoredInvoke = ({ intentIds, typedData, signature }) => post("/paymaster/invoke/execute", { intentIds, typedData, signature });
 
-export function createCollectionIntent(params) {
-  return request("/intents/create-collection", { method: "POST", body: JSON.stringify(params) });
-}
+export const createCollectionIntent = (params) => post("/intents/create-collection", params);
+export const syncCollectionTx = (txHash) => post("/collections/sync-tx", { txHash });
+export const getCollectionsByOwner = (owner) => request(`/collections?owner=${encodeURIComponent(owner)}`, { method: "GET" });
+export const saveCollectionEntry = ({ contract, label }) => post("/settings/collections", { contract, label });
+export const saveCategoryMap = (map) => post("/settings/category-map", { map });
+export const saveWalletAddress = (address) => post("/settings/wallet", { address });
 
-export function createMintIntent(params) {
-  return request("/intents/mint", { method: "POST", body: JSON.stringify(params) });
-}
-
-export function syncCollectionTx(txHash) {
-  return request("/collections/sync-tx", { method: "POST", body: JSON.stringify({ txHash }) });
-}
-
-export function getCollectionsByOwner(owner) {
-  return request(`/collections?owner=${encodeURIComponent(owner)}`, { method: "GET" });
-}
-
-export function saveCollectionEntry({ contract, label }) {
-  return request("/settings/collections", { method: "POST", body: JSON.stringify({ contract, label }) });
-}
-
-export function saveCategoryMap(map) {
-  return request("/settings/category-map", { method: "POST", body: JSON.stringify({ map }) });
-}
-
-export function saveWalletAddress(address) {
-  return request("/settings/wallet", { method: "POST", body: JSON.stringify({ address }) });
-}
-
-export function buildSponsoredInvoke(params) {
-  return request("/paymaster/invoke/build", { method: "POST", body: JSON.stringify(params) });
-}
-
-export function executeSponsoredInvoke(params) {
-  return request("/paymaster/invoke/execute", { method: "POST", body: JSON.stringify(params) });
-}
-
-export function buildSponsoredDeploy(params) {
-  return request("/paymaster/deploy/build", { method: "POST", body: JSON.stringify(params) });
-}
-
-export function provisionRecipientWallet(params) {
-  return request("/business/provisioning", { method: "POST", body: JSON.stringify(params) });
-}
+export const markMinting = (postId) => post(`/posts/${postId}/minting`);
+export const markBroadcast = (postId, data) => post(`/posts/${postId}/broadcast`, data);
+export const markMinted = (postId, data) => post(`/posts/${postId}/minted`, data);
+export const markError = (postId, message) => post(`/posts/${postId}/error`, { message });

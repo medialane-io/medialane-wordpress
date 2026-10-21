@@ -23,10 +23,14 @@ export async function tokenizeBulk(postIds, onProgress) {
   const fail = async (postId, message) => {
     failed += 1;
     report(postId, "error", message);
-    await markError(data.restUrl, data.nonce, postId, message);
+    try {
+      await markError(postId, message);
+    } catch {
+      return;
+    }
   };
 
-  const entriesByCollection = new Map();
+  const groups = new Map();
   for (const postId of postIds) {
     const post = posts[postId];
     if (!post) {
@@ -41,29 +45,25 @@ export async function tokenizeBulk(postIds, onProgress) {
     }
     report(postId, "preparing");
     try {
-      const collectionContract = post.collectionContract || data.collectionContract;
-      if (!collectionContract) {
+      if (!post.collectionId) {
         throw new Error("No collection configured.");
       }
       const entry = await prepareMint({
-        postId, title: post.title, body: post.description, image: post.image, license: data.licenseDefault, address,
-        collectionContract, authorEmail: post.authorEmail,
-        aiPolicy: data.aiPolicyDefault,
+        postId, title: post.title, body: post.description, hasImage: post.hasImage,
+        license: data.licenseDefault, aiPolicy: data.aiPolicyDefault,
+        address, collectionId: post.collectionId, authorEmail: post.authorEmail,
       });
-      if (!entriesByCollection.has(collectionContract)) entriesByCollection.set(collectionContract, []);
-      entriesByCollection.get(collectionContract).push(entry);
+      if (!groups.has(post.collectionId)) groups.set(post.collectionId, { contract: post.collectionContract, entries: [] });
+      groups.get(post.collectionId).entries.push(entry);
     } catch (err) {
       await fail(postId, err.message || "Something went wrong");
     }
   }
 
-  for (const [collectionContract, entries] of entriesByCollection) {
+  for (const { contract, entries } of groups.values()) {
     for (const group of chunk(entries, MAX_BATCH_SIZE)) {
       group.forEach((e) => report(e.postId, "minting"));
-      const results = await executeMintBatch({
-        restUrl: data.restUrl, nonce: data.nonce, account, address,
-        collectionContract, entries: group,
-      });
+      const results = await executeMintBatch({ account, address, collectionContract: contract, entries: group });
       results.forEach((r) => {
         if (r.error) failed += 1; else minted += 1;
         report(r.postId, r.error ? "error" : "minted", r.error);

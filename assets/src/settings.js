@@ -1,32 +1,28 @@
 import { connectWallet, executeCalls } from "./wallet.js";
-import { assertSiteWallet } from "./site-wallet.js";
+import { assertSiteWallet, sameAddress } from "./site-wallet.js";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
   saveCollectionEntry, saveCategoryMap, saveWalletAddress,
 } from "./api.js";
 
-export async function pollForCollection(owner, attempts = 10) {
+export async function pollForNewCollection(owner, known, { attempts = 10, intervalMs = 3000 } = {}) {
   for (let i = 0; i < attempts; i++) {
-    try {
-      const body = await getCollectionsByOwner(owner);
-      const list = body.data || [];
-      if (Array.isArray(list) && list.length > 0) {
-        return list[0].contractAddress;
-      }
-    } catch {
-    }
-    await new Promise((r) => setTimeout(r, 3000));
+    const body = await getCollectionsByOwner(owner).catch(() => null);
+    const fresh = ((body && body.data) || []).find((c) => !known.some((k) => sameAddress(k, c.contractAddress)));
+    if (fresh) return fresh.contractAddress;
+    await new Promise((r) => setTimeout(r, intervalMs));
   }
   return null;
 }
 
-export async function createAndRegisterCollection(address, account, label) {
+export async function createAndRegisterCollection(address, account, label, polling) {
+  const existing = ((await getCollectionsByOwner(address)).data || []).map((c) => c.contractAddress);
+
   const intentRes = await createCollectionIntent({ owner: address, name: label, symbol: "POST" });
-  const calls = intentRes.data && intentRes.data.calls;
-  const txHash = await executeCalls(account, calls);
+  const txHash = await executeCalls(account, intentRes.data && intentRes.data.calls);
   await syncCollectionTx(txHash).catch((err) => console.warn("Medialane: eager tx sync failed", err));
 
-  const contract = await pollForCollection(address);
+  const contract = await pollForNewCollection(address, existing, polling);
   if (contract) {
     await saveCollectionEntry({ contract, label });
   }

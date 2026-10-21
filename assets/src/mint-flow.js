@@ -1,114 +1,111 @@
+import { signTypedData, waitForConfirmation, mintedTokenIdsFromReceipt } from "./wallet.js";
 import {
-  signTypedData, waitForConfirmation, generateInterimKeypair,
-  signDeploymentWithInterimKey, mintedTokenIdsFromReceipt,
-} from "./wallet.js";
-import {
-  uploadJson, createMintIntent, buildSponsoredInvoke, executeSponsoredInvoke,
-  buildSponsoredDeploy, provisionRecipientWallet,
+  uploadJson, uploadFeaturedImage, createMintIntent, provisionRecipientWallet,
+  buildSponsoredInvoke, executeSponsoredInvoke,
+  markMinting, markBroadcast, markMinted, markError,
 } from "./api.js";
+import { ensureSession, forgetSession } from "./session.js";
 import { buildLicenseAttributes } from "./license.js";
 
-async function postJson(restUrl, nonce, path, body) {
-  await fetch(`${restUrl}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-WP-Nonce": nonce },
-    body: JSON.stringify(body),
-  });
-}
+const SIGN_IN_REQUIRED = "invalid_request_auth";
+const SAVE_FAILED = "Minted on chain, but this site could not save it. Use Check status on the post.";
 
-function markMinting(restUrl, nonce, postId) {
-  return postJson(restUrl, nonce, `/posts/${postId}/minting`, {});
-}
+export { markError };
 
-function markBroadcast(restUrl, nonce, postId, data) {
-  return postJson(restUrl, nonce, `/posts/${postId}/broadcast`, data);
-}
-
-function markMinted(restUrl, nonce, postId, data) {
-  return postJson(restUrl, nonce, `/posts/${postId}/minted`, data);
-}
-
-export function markError(restUrl, nonce, postId, message) {
-  return postJson(restUrl, nonce, `/posts/${postId}/error`, { message });
-}
-
-function randomSalt() {
-  return crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "");
-}
-
-async function resolveAuthorWallet(authorEmail) {
-  const { address, privateKey, publicKey } = generateInterimKeypair();
-  const buildRes = await buildSponsoredDeploy({ ownerPubkey: publicKey, ownerAddress: address });
-  const signature = await signDeploymentWithInterimKey(privateKey, address, buildRes.data.typedData);
-  const provisionRes = await provisionRecipientWallet({
-    recipientScheme: "email",
-    recipientValue: authorEmail,
-    interimOwnerPubkey: publicKey,
-    derivationSalt: randomSalt(),
-    deployment: { typedData: buildRes.data.typedData, signature, deployment: buildRes.data.deployment },
-  });
-  return provisionRes.data.walletAddress;
-}
-
-export async function prepareMint({ postId, title, body, image, license, aiPolicy, address, collectionContract, authorEmail }) {
+export async function prepareMint({ postId, title, body, hasImage, license, aiPolicy, address, collectionId, authorEmail }) {
   if (!authorEmail) {
     throw new Error(`Post ${postId}'s author has no registered email. Assign a valid author before tokenizing.`);
   }
-  const recipient = await resolveAuthorWallet(authorEmail);
-  const metaRes = await uploadJson({
-    name: title, description: body, image: image || undefined,
+  const provisioned = await provisionRecipientWallet({ email: authorEmail });
+  const recipient = provisioned.data.walletAddress;
+
+  const image = hasImage ? (await uploadFeaturedImage(postId)).data.url : null;
+  const metadata = await uploadJson({
+    name: title,
+    description: body,
+    image: image || undefined,
     attributes: buildLicenseAttributes(license, aiPolicy),
   });
-  const intentRes = await createMintIntent({
+
+  const intent = await createMintIntent({
     owner: address,
-    collectionId: collectionContract,
     recipient,
-    tokenUri: metaRes.data.url,
+    collectionId,
+    tokenUri: metadata.data.url,
     royaltyBps: 0,
   });
-  return { postId, license, calls: intentRes.data.calls };
+  return { postId, license, intentId: intent.data.id };
 }
 
-export async function executeMintBatch({ restUrl, nonce, account, address, collectionContract, entries }) {
+async function sponsor(account, address, intentIds) {
+  const attempt = async () => {
+    await ensureSession(account, address);
+    const built = await buildSponsoredInvoke({ intentIds });
+    const signature = await signTypedData(account, built.typedData);
+    return executeSponsoredInvoke({ intentIds, typedData: built.typedData, signature });
+  };
+  try {
+    return await attempt();
+  } catch (err) {
+    if (err.code !== SIGN_IN_REQUIRED) throw err;
+    forgetSession();
+    return attempt();
+  }
+}
+
+async function failAll(entries, message) {
+  await Promise.all(entries.map((e) => markError(e.postId, message)));
+  return entries.map((e) => ({ postId: e.postId, error: message }));
+}
+
+export async function executeMintBatch({ account, address, collectionContract, entries }) {
   if (!collectionContract) {
     throw new Error("No collection configured. Connect a wallet in Medialane Settings first.");
   }
-  await Promise.all(entries.map((e) => markMinting(restUrl, nonce, e.postId)));
+  await Promise.all(entries.map((e) => markMinting(e.postId)));
 
-  const calls = entries.flatMap((e) => e.calls);
+  let txHash;
   try {
-    const buildRes = await buildSponsoredInvoke({ userAddress: address, calls });
-    const signature = await signTypedData(account, buildRes.data.typedData);
-    const execRes = await executeSponsoredInvoke({ userAddress: address, typedData: buildRes.data.typedData, signature, calls });
-    const txHash = execRes.data.transactionHash;
-
-    await Promise.all(entries.map((e, i) =>
-      markBroadcast(restUrl, nonce, e.postId, { txHash, contract: collectionContract, license: e.license, index: i })
-    ));
-
-    const receipt = await waitForConfirmation(txHash);
-    const tokenIds = mintedTokenIdsFromReceipt(receipt, collectionContract);
-
-    await Promise.all(entries.map((e, i) =>
-      markMinted(restUrl, nonce, e.postId, { tokenId: tokenIds[i] || "", txHash, contract: collectionContract, license: e.license })
-    ));
-    return entries.map((e) => ({ postId: e.postId, txHash }));
+    const executed = await sponsor(account, address, entries.map((e) => e.intentId));
+    txHash = executed.transactionHash;
   } catch (err) {
-    const message = err.message || "Something went wrong";
-    await Promise.all(entries.map((e) => markError(restUrl, nonce, e.postId, message)));
-    return entries.map((e) => ({ postId: e.postId, error: message }));
+    return failAll(entries, err.message || "Something went wrong");
   }
+
+  await Promise.allSettled(entries.map((e, i) =>
+    markBroadcast(e.postId, { txHash, contract: collectionContract, license: e.license, index: i })
+  ));
+
+  let tokenIds;
+  try {
+    const receipt = await waitForConfirmation(txHash);
+    tokenIds = mintedTokenIdsFromReceipt(receipt, collectionContract);
+  } catch (err) {
+    return failAll(entries, err.message || "Something went wrong");
+  }
+
+  const saved = await Promise.allSettled(entries.map((e, i) =>
+    markMinted(e.postId, { tokenId: tokenIds[i] || "", txHash, contract: collectionContract, license: e.license })
+  ));
+  return entries.map((e, i) =>
+    saved[i].status === "fulfilled" ? { postId: e.postId, txHash } : { postId: e.postId, txHash, error: SAVE_FAILED }
+  );
 }
 
-export async function resumeMint({ restUrl, nonce, postId, txHash, contract, license, index }) {
+export async function resumeMint({ postId, txHash, contract, license, index }) {
+  let tokenIds;
   try {
     const receipt = await waitForConfirmation(txHash);
-    const tokenIds = mintedTokenIdsFromReceipt(receipt, contract);
-    await markMinted(restUrl, nonce, postId, { tokenId: tokenIds[index] || "", txHash, contract, license });
-    return { postId, txHash };
+    tokenIds = mintedTokenIdsFromReceipt(receipt, contract);
   } catch (err) {
     const message = err.message || "Something went wrong";
-    await markError(restUrl, nonce, postId, message);
+    await markError(postId, message);
     return { postId, error: message };
   }
+  try {
+    await markMinted(postId, { tokenId: tokenIds[index] || "", txHash, contract, license });
+  } catch {
+    return { postId, txHash, error: SAVE_FAILED };
+  }
+  return { postId, txHash };
 }

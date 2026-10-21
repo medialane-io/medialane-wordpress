@@ -7,32 +7,31 @@ vi.mock("get-starknet-core", () => ({
   getStarknet: () => ({ getAvailableWallets }),
 }));
 vi.mock("starknet", () => ({
-  RpcProvider: class {},
+  RpcProvider: class { constructor(options) { this.options = options; } },
   WalletAccount: { connect: (...args) => walletAccountConnect(...args) },
   stark: { signatureToHexArray: (sig) => sig },
-  ec: { starkCurve: {
-    utils: { randomPrivateKey: () => new Uint8Array([1, 2, 3, 4]) },
-    getStarkKey: (priv) => "0xpub" + Array.from(priv).join(""),
-  } },
-  Account: class {
-    constructor(_provider, address, _privateKey) { this.address = address; }
-    async signMessage(typedData) { return ["0xsig1", "0xsig2"]; }
-  },
   hash: { getSelectorFromName: (name) => (name === "Transfer" ? "0x1" : "0x2") },
-}));
-vi.mock("@medialane/sdk/starknet", () => ({
-  computeAccountAddress: (pubkey) => `0xaddr-for-${pubkey}`,
 }));
 
 const {
-  connectWallet, executeCalls, signTypedData, waitForConfirmation,
-  generateInterimKeypair, signDeploymentWithInterimKey, mintedTokenIdsFromReceipt,
+  connectWallet, executeCalls, signTypedData, waitForConfirmation, mintedTokenIdsFromReceipt,
 } = await import("../../assets/src/wallet.js");
 
 describe("connectWallet", () => {
   beforeEach(() => {
+    global.window = { tokenizeContentData: { restUrl: "/wp-json/tokenize-content/v1", nonce: "abc" } };
     getAvailableWallets.mockReset();
     walletAccountConnect.mockReset();
+  });
+
+  it("reads the chain through the site's own proxy, not a public node", async () => {
+    getAvailableWallets.mockResolvedValue([{ id: "argentX" }]);
+    walletAccountConnect.mockResolvedValue({ address: "0xabc" });
+
+    await connectWallet();
+
+    const [provider] = walletAccountConnect.mock.calls[0];
+    expect(provider.options).toEqual({ nodeUrl: "/wp-json/tokenize-content/v1/rpc", headers: { "X-WP-Nonce": "abc" } });
   });
 
   it("throws when no wallet extension is available", async () => {
@@ -69,22 +68,6 @@ describe("signTypedData", () => {
 
     expect(signMessage).toHaveBeenCalledWith(typedData);
     expect(signature).toEqual(["0x1", "0x2"]);
-  });
-});
-
-describe("generateInterimKeypair", () => {
-  it("derives a public key and address from a fresh random private key", () => {
-    const keypair = generateInterimKeypair();
-    expect(keypair.privateKey).toBeTruthy();
-    expect(keypair.publicKey).toBe("0xpub1234");
-    expect(keypair.address).toBe("0xaddr-for-0xpub1234");
-  });
-});
-
-describe("signDeploymentWithInterimKey", () => {
-  it("signs the deployment typed data with a throwaway Account built from the interim key", async () => {
-    const signature = await signDeploymentWithInterimKey("0xpriv", "0xaddr", { domain: {}, message: {} });
-    expect(signature).toEqual(["0xsig1", "0xsig2"]);
   });
 });
 

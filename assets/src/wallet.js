@@ -1,13 +1,17 @@
 import { getStarknet } from "get-starknet-core";
-import { RpcProvider, WalletAccount, stark, ec, Account, hash } from "starknet";
-import { computeAccountAddress } from "@medialane/sdk/starknet";
+import { RpcProvider, WalletAccount, stark, hash } from "starknet";
+import { rpcConfig } from "./api.js";
+
+export function createProvider() {
+  return new RpcProvider(rpcConfig());
+}
 
 export async function connectWallet() {
   const wallets = await getStarknet().getAvailableWallets();
   if (!wallets || wallets.length === 0) {
     throw new Error("No Starknet wallet found. Install Ready or Braavos.");
   }
-  const account = await WalletAccount.connect(new RpcProvider(), wallets[0]);
+  const account = await WalletAccount.connect(createProvider(), wallets[0]);
   if (!account?.address) {
     throw new Error("Wallet did not return an address.");
   }
@@ -19,21 +23,7 @@ export async function signTypedData(account, typedData) {
   return stark.signatureToHexArray(signature);
 }
 
-export function generateInterimKeypair() {
-  const privateKeyBytes = ec.starkCurve.utils.randomPrivateKey();
-  const privateKey = "0x" + Array.from(privateKeyBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-  const publicKey = ec.starkCurve.getStarkKey(privateKeyBytes);
-  const address = computeAccountAddress(publicKey);
-  return { privateKey, publicKey, address };
-}
-
-export async function signDeploymentWithInterimKey(privateKey, address, typedData) {
-  const account = new Account(new RpcProvider(), address, privateKey);
-  const signature = await account.signMessage(typedData);
-  return stark.signatureToHexArray(signature);
-}
-
-export async function waitForConfirmation(txHash, provider = new RpcProvider()) {
+export async function waitForConfirmation(txHash, provider = createProvider()) {
   const receipt = await provider.waitForTransaction(txHash);
   if (receipt.isReverted && receipt.isReverted()) {
     throw new Error(receipt.value?.revert_reason || "Transaction reverted");
