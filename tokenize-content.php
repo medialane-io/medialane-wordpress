@@ -24,6 +24,7 @@ require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-post-meta.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-eligibility.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-description.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-settings.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-settings-page.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-rest-proxy.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-metabox.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-bulk-action.php';
@@ -31,6 +32,7 @@ require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-asset-badge.php';
 
 add_action( 'init', array( 'TokenizeContent\\PostMeta', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\Settings', 'register' ) );
+add_action( 'init', array( 'TokenizeContent\\SettingsPage', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\Metabox', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\BulkAction', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\AssetBadge', 'register' ) );

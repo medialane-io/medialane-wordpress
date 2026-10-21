@@ -63,7 +63,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		Settings::save_wallet_address( '0xbeef01' );
 
 		ob_start();
-		Settings::render_settings_page();
+		\TokenizeContent\SettingsPage::render();
 		$html = ob_get_clean();
 
 		$this->assertStringContainsString( "name='option_page' value='tokenize-content-key'", $html );
@@ -75,7 +75,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		update_option( Settings::OPTION_API_KEY, 'SECRET-OPTION-KEY' );
 
 		ob_start();
-		Settings::render_settings_page();
+		\TokenizeContent\SettingsPage::render();
 		$html = ob_get_clean();
 
 		$this->assertStringNotContainsString( 'SECRET-OPTION-KEY', $html );
@@ -103,7 +103,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 
 		ob_start();
-		Settings::render_settings_page();
+		\TokenizeContent\SettingsPage::render();
 		$html = ob_get_clean();
 
 		$this->assertStringNotContainsString( 'SECRET-CONSTANT-KEY', $html );
@@ -302,7 +302,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		} );
 
 		ob_start();
-		Settings::render_settings_page();
+		\TokenizeContent\SettingsPage::render();
 		$html = ob_get_clean();
 
 		$this->assertStringContainsString( 'Collections could not be loaded right now', $html );
@@ -410,5 +410,37 @@ class Test_Settings extends Tokenize_Test_Case {
 	 */
 	public function test_canonical_address_agrees_with_the_shared_vectors( $a, $b, $same ) {
 		$this->assertSame( $same, Settings::canonical_address( $a ) === Settings::canonical_address( $b ) );
+	}
+
+	private function render_page_with_live( array $items ): string {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		add_filter( 'pre_http_request', function () use ( $items ) {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => $items ) ) );
+		} );
+		ob_start();
+		\TokenizeContent\SettingsPage::render();
+		return ob_get_clean();
+	}
+
+	public function test_the_default_column_marks_the_default_collection_across_address_formats() {
+		Settings::set_default_collection( '0xaaa' );
+
+		$html = $this->render_page_with_live( array( array( 'contractAddress' => '0x000AAA', 'collectionId' => '1', 'service' => 'mip-erc721' ) ) );
+
+		$this->assertStringContainsString( '<td>Yes</td>', $html );
+	}
+
+	public function test_the_category_map_preselects_the_mapped_collection_across_address_formats() {
+		$cat = $this->factory->category->create( array( 'name' => 'News' ) );
+		Settings::save_category_map( array( $cat => '0xbbb' ) );
+
+		$html = $this->render_page_with_live( array(
+			array( 'contractAddress' => '0x000AAA', 'collectionId' => '1', 'service' => 'mip-erc721' ),
+			array( 'contractAddress' => '0x000BBB', 'collectionId' => '2', 'service' => 'mip-erc721' ),
+		) );
+
+		$this->assertMatchesRegularExpression( '/<option value="0x000BBB"\s+selected=\'selected\'/', $html );
 	}
 }

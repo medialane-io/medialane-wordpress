@@ -48,6 +48,26 @@ class Test_Bulk_Action extends Tokenize_Test_Case {
 		$this->assertSame( '', $this->capture_notice() );
 	}
 
+	public function test_posts_that_are_minting_or_errored_still_count_as_not_yet_tokenized() {
+		$minting = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		PostMeta::set_minting( $minting );
+		$errored = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		PostMeta::save_error( $errored, 'failed' );
+		$this->factory->post->create( array( 'post_status' => 'publish' ) );
+
+		$this->assertStringContainsString( '3 published posts', $this->capture_notice() );
+	}
+
+	public function test_the_count_is_not_limited_to_a_page_of_posts() {
+		$this->factory->post->create_many( 5, array( 'post_status' => 'publish' ) );
+		add_filter( 'post_limits', function ( $limits ) {
+			return preg_match( '/LIMIT 0, 1$/', $limits ) ? $limits : 'LIMIT 0, 2';
+		} );
+
+		$this->assertStringContainsString( '5 published posts', $this->capture_notice() );
+		remove_all_filters( 'post_limits' );
+	}
+
 	public function test_no_notice_outside_the_posts_list_screen() {
 		$this->factory->post->create( array( 'post_status' => 'publish' ) );
 		set_current_screen( 'dashboard' );

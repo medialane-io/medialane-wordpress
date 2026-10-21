@@ -19,11 +19,20 @@ class BulkAction {
 		return $actions;
 	}
 
-	private static function get_pending_posts(): array {
-		$posts = get_posts( array( 'post_type' => 'post', 'posts_per_page' => 200, 'post_status' => 'publish', 'has_password' => false ) );
-		return array_filter( $posts, function ( $p ) {
-			return PostMeta::STATUS_MINTED !== PostMeta::get_status( $p->ID );
-		} );
+	private static function pending_count(): int {
+		$query = new \WP_Query( array(
+			'post_type'      => 'post',
+			'post_status'    => 'publish',
+			'has_password'   => false,
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'meta_query'     => array(
+				'relation' => 'OR',
+				array( 'key' => PostMeta::KEY_STATUS, 'compare' => 'NOT EXISTS' ),
+				array( 'key' => PostMeta::KEY_STATUS, 'value' => PostMeta::STATUS_MINTED, 'compare' => '!=' ),
+			),
+		) );
+		return (int) $query->found_posts;
 	}
 
 	public static function render_pending_notice() {
@@ -34,7 +43,7 @@ class BulkAction {
 		if ( ! current_user_can( Settings::CAP_TOKENIZE ) ) {
 			return;
 		}
-		$count = count( self::get_pending_posts() );
+		$count = self::pending_count();
 		if ( $count < 1 ) {
 			return;
 		}
