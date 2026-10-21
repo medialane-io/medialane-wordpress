@@ -65,7 +65,8 @@ class BulkAction {
 		if ( 'edit.php' !== $hook || ! current_user_can( Settings::CAP_TOKENIZE ) ) {
 			return;
 		}
-		wp_enqueue_script( 'tokenize-content-bulk-action', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/bulk-action.js', array(), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_enqueue_script( 'tokenize-content-bulk-action', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/bulk-action.js', array( 'wp-i18n' ), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_set_script_translations( 'tokenize-content-bulk-action', 'tokenize-content' );
 		wp_localize_script( 'tokenize-content-bulk-action', 'tokenizeContentData', array(
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),

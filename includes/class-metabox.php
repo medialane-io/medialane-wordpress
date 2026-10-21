@@ -75,7 +75,8 @@ class Metabox {
 			return;
 		}
 		global $post;
-		wp_enqueue_script( 'tokenize-content-metabox', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/metabox.js', array(), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_enqueue_script( 'tokenize-content-metabox', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/metabox.js', array( 'wp-i18n' ), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_set_script_translations( 'tokenize-content-metabox', 'tokenize-content' );
 		wp_localize_script( 'tokenize-content-metabox', 'tokenizeContentData', array(
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),

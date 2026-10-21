@@ -29,7 +29,8 @@ class SettingsPage {
 		if ( self::HOOK !== $hook ) {
 			return;
 		}
-		wp_enqueue_script( 'tokenize-content-settings', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/settings.js', array(), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_enqueue_script( 'tokenize-content-settings', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/settings.js', array( 'wp-i18n' ), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_set_script_translations( 'tokenize-content-settings', 'tokenize-content' );
 		wp_localize_script( 'tokenize-content-settings', 'tokenizeContentData', array(
 			'restUrl'       => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'         => wp_create_nonce( 'wp_rest' ),

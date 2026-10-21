@@ -6,15 +6,17 @@ import {
 } from "./api.js";
 import { ensureSession, forgetSession } from "./session.js";
 import { buildLicenseAttributes } from "./license.js";
+import { __, sprintf } from "@wordpress/i18n";
 
 const SIGN_IN_REQUIRED = "invalid_request_auth";
-const SAVE_FAILED = "Minted on chain, but this site could not save it. Use Check status on the post.";
+const saveFailed = () => __("Minted on chain, but this site could not save it. Use Check status on the post.", "tokenize-content");
+const wentWrong = () => __("Something went wrong", "tokenize-content");
 
 export { markError };
 
 export async function prepareMint({ postId, title, body, hasImage, license, licenses, aiPolicy, address, collectionId, authorEmail }) {
   if (!authorEmail) {
-    throw new Error(`Post ${postId}'s author has no registered email. Assign a valid author before tokenizing.`);
+    throw new Error(sprintf(__("Post %d's author has no registered email. Assign a valid author before tokenizing.", "tokenize-content"), postId));
   }
   const provisioned = await provisionRecipientWallet({ email: authorEmail });
   const recipient = provisioned.data.walletAddress;
@@ -60,7 +62,7 @@ async function failAll(entries, message) {
 
 export async function executeMintBatch({ account, address, collectionContract, entries }) {
   if (!collectionContract) {
-    throw new Error("No collection configured. Connect a wallet in Medialane Settings first.");
+    throw new Error(__("No collection configured. Connect a wallet in Medialane Settings first.", "tokenize-content"));
   }
   await Promise.all(entries.map((e) => markMinting(e.postId)));
 
@@ -69,7 +71,7 @@ export async function executeMintBatch({ account, address, collectionContract, e
     const executed = await sponsor(account, address, entries.map((e) => e.intentId));
     txHash = executed.transactionHash;
   } catch (err) {
-    return failAll(entries, err.message || "Something went wrong");
+    return failAll(entries, err.message || wentWrong());
   }
 
   await Promise.allSettled(entries.map((e, i) =>
@@ -81,14 +83,14 @@ export async function executeMintBatch({ account, address, collectionContract, e
     const receipt = await waitForConfirmation(txHash);
     tokenIds = mintedTokenIdsFromReceipt(receipt, collectionContract);
   } catch (err) {
-    return failAll(entries, err.message || "Something went wrong");
+    return failAll(entries, err.message || wentWrong());
   }
 
   const saved = await Promise.allSettled(entries.map((e, i) =>
     markMinted(e.postId, { tokenId: tokenIds[i] || "", txHash, contract: collectionContract, license: e.license })
   ));
   return entries.map((e, i) =>
-    saved[i].status === "fulfilled" ? { postId: e.postId, txHash } : { postId: e.postId, txHash, error: SAVE_FAILED }
+    saved[i].status === "fulfilled" ? { postId: e.postId, txHash } : { postId: e.postId, txHash, error: saveFailed() }
   );
 }
 
@@ -98,14 +100,14 @@ export async function resumeMint({ postId, txHash, contract, license, index }) {
     const receipt = await waitForConfirmation(txHash);
     tokenIds = mintedTokenIdsFromReceipt(receipt, contract);
   } catch (err) {
-    const message = err.message || "Something went wrong";
+    const message = err.message || wentWrong();
     await markError(postId, message);
     return { postId, error: message };
   }
   try {
     await markMinted(postId, { tokenId: tokenIds[index] || "", txHash, contract, license });
   } catch {
-    return { postId, txHash, error: SAVE_FAILED };
+    return { postId, txHash, error: saveFailed() };
   }
   return { postId, txHash };
 }

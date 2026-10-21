@@ -2,6 +2,7 @@ import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch, resumeMint } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
 import { assertSiteWallet } from "./site-wallet.js";
+import { __ } from "@wordpress/i18n";
 
 export async function tokenizePost(postId) {
   const data = window.tokenizeContentData;
@@ -15,14 +16,14 @@ export async function tokenizePost(postId) {
   const { posts } = await getTokenizeData([postId]);
   const post = posts[postId];
   if (!post || post.error) {
-    throw new Error(post ? post.error : "No data was returned for this post.");
+    throw new Error(post ? post.error : __("No data was returned for this post.", "tokenize-content"));
   }
 
   const chosen = document.getElementById("tokenize-content-collection")?.selectedOptions[0];
   const collectionId = chosen ? chosen.dataset.collectionId : post.collectionId;
   const collectionContract = chosen ? chosen.value : post.collectionContract;
   if (!collectionId) {
-    throw new Error("No collection configured.");
+    throw new Error(__("No collection configured.", "tokenize-content"));
   }
 
   const entry = await prepareMint({
@@ -42,14 +43,14 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", async () => {
       const postId = document.getElementById("tokenize-content-metabox").dataset.postId;
       btn.disabled = true;
-      btn.textContent = "Tokenizing…";
+      btn.textContent = __("Tokenizing…", "tokenize-content");
       try {
         await tokenizePost(postId);
         location.reload();
       } catch (err) {
         btn.disabled = false;
-        btn.textContent = "Tokenize Post";
-        alert(err.message || "Something went wrong");
+        btn.textContent = __("Tokenize Post", "tokenize-content");
+        alert(err.message || __("Something went wrong", "tokenize-content"));
       }
     });
   }
@@ -58,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (checkBtn) {
     checkBtn.addEventListener("click", async () => {
       checkBtn.disabled = true;
-      checkBtn.textContent = "Checking…";
+      checkBtn.textContent = __("Checking…", "tokenize-content");
       await resumeMint({
         postId: document.getElementById("tokenize-content-metabox").dataset.postId,
         txHash: checkBtn.dataset.txHash,

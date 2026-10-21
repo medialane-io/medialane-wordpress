@@ -1,5 +1,6 @@
 import { connectWallet, executeCalls } from "./wallet.js";
 import { assertSiteWallet, sameAddress } from "./site-wallet.js";
+import { __ } from "@wordpress/i18n";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
   saveCollectionEntry, saveCategoryMap, saveWalletAddress,
@@ -42,15 +43,15 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!button) return;
   button.addEventListener("click", async () => {
     button.disabled = true;
-    button.textContent = "Connecting…";
+    button.textContent = __("Connecting…", "tokenize-content");
     try {
       const { address } = await connectWallet();
       await saveWalletAddress(address);
       location.reload();
     } catch (err) {
       button.disabled = false;
-      button.textContent = "Connect Wallet";
-      alert(err.message || "Failed to connect wallet.");
+      button.textContent = __("Connect Wallet", "tokenize-content");
+      alert(err.message || __("Failed to connect wallet.", "tokenize-content"));
     }
   });
 
@@ -60,11 +61,11 @@ document.addEventListener("DOMContentLoaded", () => {
     createCollectionBtn.addEventListener("click", async () => {
       const label = newCollectionLabel.value.trim();
       if (!label) {
-        alert("Give the new collection a name first.");
+        alert(__("Give the new collection a name first.", "tokenize-content"));
         return;
       }
       createCollectionBtn.disabled = true;
-      createCollectionBtn.textContent = "Creating…";
+      createCollectionBtn.textContent = __("Creating…", "tokenize-content");
       try {
         const { address, account } = await connectWallet();
         assertSiteWallet(address, window.tokenizeContentData.walletAddress);
@@ -72,8 +73,8 @@ document.addEventListener("DOMContentLoaded", () => {
         location.reload();
       } catch (err) {
         createCollectionBtn.disabled = false;
-        createCollectionBtn.textContent = "Create Collection";
-        alert(err.message || "Failed to create collection.");
+        createCollectionBtn.textContent = __("Create Collection", "tokenize-content");
+        alert(err.message || __("Failed to create collection.", "tokenize-content"));
       }
     });
   }
@@ -85,16 +86,17 @@ document.addEventListener("DOMContentLoaded", () => {
         categoryId: el.dataset.categoryId,
         value: el.value,
       }));
+      const saved = __("Saved", "tokenize-content");
       saveMapBtn.disabled = true;
-      saveMapBtn.textContent = "Saving…";
+      saveMapBtn.textContent = __("Saving…", "tokenize-content");
       try {
         await saveCategoryMap(collectCategoryMap(rows));
-        saveMapBtn.textContent = "Saved";
+        saveMapBtn.textContent = saved;
       } catch (err) {
-        alert(err.message || "Failed to save the category mapping.");
+        alert(err.message || __("Failed to save the category mapping.", "tokenize-content"));
       } finally {
         saveMapBtn.disabled = false;
-        if (saveMapBtn.textContent !== "Saved") saveMapBtn.textContent = "Save Mapping";
+        if (saveMapBtn.textContent !== saved) saveMapBtn.textContent = __("Save Mapping", "tokenize-content");
       }
     });
   }

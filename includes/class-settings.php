@@ -180,7 +180,7 @@ class Settings {
 		}
 		$status = wp_remote_retrieve_response_code( $response );
 		if ( $status < 200 || $status >= 300 ) {
-			return new \WP_Error( 'tokenize_content_collections_unavailable', 'Collections could not be loaded.', array( 'status' => $status ) );
+			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded.', 'tokenize-content' ), array( 'status' => $status ) );
 		}
 		$body  = json_decode( wp_remote_retrieve_body( $response ), true );
 		$items = ( is_array( $body ) && isset( $body['data'] ) && is_array( $body['data'] ) ) ? $body['data'] : array();

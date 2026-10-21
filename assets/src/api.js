@@ -1,3 +1,5 @@
+import { __, sprintf } from "@wordpress/i18n";
+
 let session = "";
 
 export function setSession(token) {
@@ -37,7 +39,7 @@ async function request(path, opts = {}) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(body.message || body.error || `Request failed (${res.status})`, { status: res.status, code: body.code });
+    throw new ApiError(body.message || body.error || sprintf(__("Request failed (%d)", "tokenize-content"), res.status), { status: res.status, code: body.code });
   }
   return body;
 }

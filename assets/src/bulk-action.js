@@ -2,6 +2,7 @@ import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch, markError } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
 import { assertSiteWallet } from "./site-wallet.js";
+import { __, _n, sprintf } from "@wordpress/i18n";
 
 const MAX_BATCH_SIZE = 25;
 
@@ -35,7 +36,7 @@ export async function tokenizeBulk(postIds, onProgress) {
     const post = posts[postId];
     if (!post) {
       failed += 1;
-      report(postId, "error", "No data was returned for this post.");
+      report(postId, "error", __("No data was returned for this post.", "tokenize-content"));
       continue;
     }
     if (post.error) {
@@ -46,7 +47,7 @@ export async function tokenizeBulk(postIds, onProgress) {
     report(postId, "preparing");
     try {
       if (!post.collectionId) {
-        throw new Error("No collection configured.");
+        throw new Error(__("No collection configured.", "tokenize-content"));
       }
       const entry = await prepareMint({
         postId, title: post.title, body: post.description, hasImage: post.hasImage,
@@ -56,7 +57,7 @@ export async function tokenizeBulk(postIds, onProgress) {
       if (!groups.has(post.collectionId)) groups.set(post.collectionId, { contract: post.collectionContract, entries: [] });
       groups.get(post.collectionId).entries.push(entry);
     } catch (err) {
-      await fail(postId, err.message || "Something went wrong");
+      await fail(postId, err.message || __("Something went wrong", "tokenize-content"));
     }
   }
 
@@ -73,12 +74,32 @@ export async function tokenizeBulk(postIds, onProgress) {
   return { minted, failed };
 }
 
-const STATUS_LABEL = {
-  preparing: "Preparing…",
-  minting: "Signing & minting…",
-  minted: "Minted",
-  error: "Failed",
-};
+const statusLabel = (status) => ({
+  preparing: __("Preparing…", "tokenize-content"),
+  minting: __("Signing & minting…", "tokenize-content"),
+  minted: __("Minted", "tokenize-content"),
+  error: __("Failed", "tokenize-content"),
+}[status] || status);
+
+function rowText(title, label, message) {
+  return `${title} — ${label}${message ? `: ${message}` : ""}`;
+}
+
+export function summaryLine(minted, failed) {
+  return sprintf(__("%1$d minted, %2$d failed.", "tokenize-content"), minted, failed);
+}
+
+export function confirmMessage(count) {
+  return sprintf(
+    _n(
+      "Tokenize %d post on Medialane? This mints it on-chain and can't be undone.",
+      "Tokenize %d posts on Medialane? This mints them on-chain and can't be undone.",
+      count,
+      "tokenize-content",
+    ),
+    count,
+  );
+}
 
 export function buildStatusPanel(postIds, titles) {
   const panel = document.createElement("div");
@@ -87,7 +108,13 @@ export function buildStatusPanel(postIds, titles) {
   panel.style.padding = "12px 16px";
 
   const heading = document.createElement("p");
-  heading.innerHTML = `<strong>Tokenizing ${postIds.length} post${postIds.length === 1 ? "" : "s"} with Medialane…</strong> You'll sign once for the whole batch.`;
+  const title = document.createElement("strong");
+  title.textContent = sprintf(
+    _n("Tokenizing %d post with Medialane…", "Tokenizing %d posts with Medialane…", postIds.length, "tokenize-content"),
+    postIds.length,
+  );
+  heading.appendChild(title);
+  heading.appendChild(document.createTextNode(" " + __("You'll sign once for the whole batch.", "tokenize-content")));
   panel.appendChild(heading);
 
   const list = document.createElement("ul");
@@ -95,7 +122,7 @@ export function buildStatusPanel(postIds, titles) {
   const rows = {};
   for (const postId of postIds) {
     const row = document.createElement("li");
-    row.textContent = `${titles[postId] || `#${postId}`} — Waiting…`;
+    row.textContent = rowText(titles[postId] || `#${postId}`, __("Waiting…", "tokenize-content"));
     list.appendChild(row);
     rows[postId] = row;
   }
@@ -112,8 +139,8 @@ export function buildStatusPanel(postIds, titles) {
       const row = rows[postId];
       if (!row) return;
       const title = titles[postId] || `#${postId}`;
-      const label = STATUS_LABEL[status] || status;
-      row.textContent = `${title} — ${label}${message ? `: ${message}` : ""}`;
+      const label = statusLabel(status);
+      row.textContent = rowText(title, label, message);
     },
   };
 }
@@ -127,7 +154,7 @@ document.addEventListener("submit", (e) => {
 
   const ids = Array.from(form.querySelectorAll('input[name="post[]"]:checked')).map((el) => el.value);
   if (ids.length === 0) return;
-  if (!confirm(`Tokenize ${ids.length} post${ids.length === 1 ? "" : "s"} on Medialane? This mints them on-chain and can't be undone.`)) {
+  if (!confirm(confirmMessage(ids.length))) {
     return;
   }
 
@@ -147,7 +174,7 @@ document.addEventListener("submit", (e) => {
         location.reload();
         return;
       }
-      status.finish(`${minted} minted, ${failed} failed.`);
+      status.finish(summaryLine(minted, failed));
     })
-    .catch((err) => status.finish(err.message || "Something went wrong"));
+    .catch((err) => status.finish(err.message || __("Something went wrong", "tokenize-content")));
 });

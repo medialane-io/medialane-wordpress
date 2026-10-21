@@ -1,3 +1,4 @@
+import { __ } from "@wordpress/i18n";
 import { getStarknet } from "get-starknet-core";
 import { RpcProvider, WalletAccount, stark, hash } from "starknet";
 import { rpcConfig } from "./api.js";
@@ -9,11 +10,11 @@ export function createProvider() {
 export async function connectWallet() {
   const wallets = await getStarknet().getAvailableWallets();
   if (!wallets || wallets.length === 0) {
-    throw new Error("No Starknet wallet found. Install Ready or Braavos.");
+    throw new Error(__("No Starknet wallet found. Install Ready or Braavos.", "tokenize-content"));
   }
   const account = await WalletAccount.connect(createProvider(), wallets[0]);
   if (!account?.address) {
-    throw new Error("Wallet did not return an address.");
+    throw new Error(__("Wallet did not return an address.", "tokenize-content"));
   }
   return { address: account.address, account };
 }
@@ -26,7 +27,7 @@ export async function signTypedData(account, typedData) {
 export async function waitForConfirmation(txHash, provider = createProvider()) {
   const receipt = await provider.waitForTransaction(txHash);
   if (receipt.isReverted && receipt.isReverted()) {
-    throw new Error(receipt.value?.revert_reason || "Transaction reverted");
+    throw new Error(receipt.value?.revert_reason || __("Transaction reverted", "tokenize-content"));
   }
   return receipt;
 }
@@ -56,7 +57,7 @@ export function mintedTokenIdsFromReceipt(receipt, contract) {
 
 export async function executeCalls(account, calls) {
   if (!calls || calls.length === 0) {
-    throw new Error("No calls to execute.");
+    throw new Error(__("No calls to execute.", "tokenize-content"));
   }
   const { transaction_hash } = await account.execute(calls);
   await waitForConfirmation(transaction_hash, account.channel?.provider);
