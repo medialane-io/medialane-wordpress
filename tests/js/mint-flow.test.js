@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { prepareMint, executeMintBatch } from "../../assets/src/mint-flow.js";
+import { prepareMint, executeMintBatch, resumeMint } from "../../assets/src/mint-flow.js";
 
 vi.mock("../../assets/src/api.js", () => ({
   uploadJson: vi.fn().mockResolvedValue({ data: { url: "ipfs://meta" } }),
@@ -107,5 +107,57 @@ describe("executeMintBatch", () => {
     const paths = global.fetch.mock.calls.map((call) => call[0]);
     expect(paths).not.toContain("/wp-json/tokenize-content/v1/posts/1/minted");
     expect(paths).toContain("/wp-json/tokenize-content/v1/posts/1/error");
+  });
+});
+
+describe("broadcast reference and resume", () => {
+  const base = { restUrl: "/wp-json/tokenize-content/v1", nonce: "abc" };
+
+  it("records the transaction reference for every post before waiting for confirmation", async () => {
+    const order = [];
+    global.fetch = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.endsWith("/broadcast")) order.push({ url, body: JSON.parse(opts.body) });
+      return { ok: true, json: async () => ({}) };
+    });
+    const { waitForConfirmation } = await import("../../assets/src/wallet.js");
+    waitForConfirmation.mockImplementationOnce(async () => {
+      order.push("confirm");
+      return { isReverted: () => false };
+    });
+    const call = { contractAddress: "0xc", entrypoint: "mint", calldata: [] };
+
+    await executeMintBatch({
+      ...base, account: {}, address: "0xowner", collectionContract: "0xcol",
+      entries: [{ postId: 1, license: "CC BY-SA", calls: [call] }, { postId: 2, license: "CC BY-SA", calls: [call] }],
+    });
+
+    expect(order).toEqual([
+      { url: "/wp-json/tokenize-content/v1/posts/1/broadcast", body: { txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 0 } },
+      { url: "/wp-json/tokenize-content/v1/posts/2/broadcast", body: { txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 1 } },
+      "confirm",
+    ]);
+  });
+
+  it("resumes a recorded transaction and marks the post minted with its own token id", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+
+    const result = await resumeMint({ ...base, postId: 2, txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 1 });
+
+    expect(result).toEqual({ postId: 2, txHash: "0xtx" });
+    const [, opts] = global.fetch.mock.calls.find(([url]) => url.endsWith("/posts/2/minted"));
+    expect(JSON.parse(opts.body)).toEqual({ tokenId: "102", txHash: "0xtx", contract: "0xcol", license: "CC BY-SA" });
+  });
+
+  it("marks the post errored when the recorded transaction failed", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    const { waitForConfirmation } = await import("../../assets/src/wallet.js");
+    waitForConfirmation.mockRejectedValueOnce(new Error("Transaction reverted"));
+
+    const result = await resumeMint({ ...base, postId: 2, txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 1 });
+
+    expect(result).toEqual({ postId: 2, error: "Transaction reverted" });
+    const paths = global.fetch.mock.calls.map((call) => call[0]);
+    expect(paths).toContain("/wp-json/tokenize-content/v1/posts/2/error");
+    expect(paths).not.toContain("/wp-json/tokenize-content/v1/posts/2/minted");
   });
 });

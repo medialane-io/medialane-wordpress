@@ -62,4 +62,27 @@ class Test_Post_Meta extends WP_UnitTestCase {
 		$this->assertSame( PostMeta::STATUS_MINTING, PostMeta::get_status( $post_id ) );
 		$this->assertSame( '', PostMeta::get_error( $post_id ) );
 	}
+
+	public function test_set_broadcast_keeps_minting_and_stores_the_reference() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+
+		PostMeta::set_broadcast( $post_id, array( 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY', 'batch_index' => '1' ) );
+
+		$this->assertSame( PostMeta::STATUS_MINTING, PostMeta::get_status( $post_id ) );
+		$this->assertSame( '0xabc', PostMeta::get_tx_hash( $post_id ) );
+		$this->assertSame( '0xdef', PostMeta::get_contract( $post_id ) );
+		$this->assertSame( 'CC BY', PostMeta::get_license( $post_id ) );
+		$this->assertSame( '1', PostMeta::get_batch_index( $post_id ) );
+	}
+
+	public function test_set_minting_clears_a_previous_broadcast_reference() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_broadcast( $post_id, array( 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY', 'batch_index' => '1' ) );
+
+		PostMeta::set_minting( $post_id );
+
+		$this->assertSame( '', PostMeta::get_tx_hash( $post_id ) );
+		$this->assertSame( '', PostMeta::get_batch_index( $post_id ) );
+	}
 }

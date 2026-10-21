@@ -112,6 +112,11 @@ class RestProxy {
 			'callback'            => array( __CLASS__, 'save_minting' ),
 			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
 		) );
+		register_rest_route( self::NAMESPACE, '/posts/(?P<id>\d+)/broadcast', array(
+			'methods'             => 'POST',
+			'callback'            => array( __CLASS__, 'save_broadcast' ),
+			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
+		) );
 		register_rest_route( self::NAMESPACE, '/posts/(?P<id>\d+)/minted', array(
 			'methods'             => 'POST',
 			'callback'            => array( __CLASS__, 'save_minted' ),
@@ -155,6 +160,17 @@ class RestProxy {
 	public static function save_minting( \WP_REST_Request $request ) {
 		$post_id = (int) $request->get_param( 'id' );
 		PostMeta::set_minting( $post_id );
+		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
+	}
+
+	public static function save_broadcast( \WP_REST_Request $request ) {
+		$post_id = (int) $request->get_param( 'id' );
+		PostMeta::set_broadcast( $post_id, array(
+			'tx_hash'     => (string) $request->get_param( 'txHash' ),
+			'contract'    => (string) $request->get_param( 'contract' ),
+			'license'     => (string) $request->get_param( 'license' ),
+			'batch_index' => (string) (int) $request->get_param( 'index' ),
+		) );
 		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
 	}
 

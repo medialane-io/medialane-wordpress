@@ -1,6 +1,7 @@
 <?php
 
 use TokenizeContent\Metabox;
+use TokenizeContent\PostMeta;
 
 class Test_Metabox extends WP_UnitTestCase {
 
@@ -21,5 +22,36 @@ class Test_Metabox extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'writer@example.org', $data );
 		$this->assertStringNotContainsString( 'SECRET BODY TEXT', $data );
 		unset( $GLOBALS['post'] );
+	}
+
+	private function render_for( int $post_id ): string {
+		ob_start();
+		Metabox::render( get_post( $post_id ) );
+		return ob_get_clean();
+	}
+
+	public function test_a_minting_post_with_a_recorded_broadcast_offers_a_status_check_instead_of_tokenizing() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+		PostMeta::set_broadcast( $post_id, array( 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY', 'batch_index' => '2' ) );
+
+		$html = $this->render_for( $post_id );
+
+		$this->assertStringNotContainsString( 'tokenize-content-tokenize-btn', $html );
+		$this->assertStringContainsString( 'tokenize-content-check-btn', $html );
+		$this->assertStringContainsString( 'data-tx-hash="0xabc"', $html );
+		$this->assertStringContainsString( 'data-contract="0xdef"', $html );
+		$this->assertStringContainsString( 'data-license="CC BY"', $html );
+		$this->assertStringContainsString( 'data-index="2"', $html );
+	}
+
+	public function test_a_minting_post_with_no_recorded_broadcast_still_offers_tokenizing() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+
+		$html = $this->render_for( $post_id );
+
+		$this->assertStringContainsString( 'tokenize-content-tokenize-btn', $html );
+		$this->assertStringNotContainsString( 'tokenize-content-check-btn', $html );
 	}
 }

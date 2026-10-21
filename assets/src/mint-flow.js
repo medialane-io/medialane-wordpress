@@ -20,6 +20,10 @@ function markMinting(restUrl, nonce, postId) {
   return postJson(restUrl, nonce, `/posts/${postId}/minting`, {});
 }
 
+function markBroadcast(restUrl, nonce, postId, data) {
+  return postJson(restUrl, nonce, `/posts/${postId}/broadcast`, data);
+}
+
 function markMinted(restUrl, nonce, postId, data) {
   return postJson(restUrl, nonce, `/posts/${postId}/minted`, data);
 }
@@ -83,8 +87,10 @@ export async function executeMintBatch({ restUrl, nonce, account, address, colle
     const execRes = await executeSponsoredInvoke({ userAddress: address, typedData: buildRes.data.typedData, signature, calls });
     const txHash = execRes.data.transactionHash;
 
-    // The paymaster returning a tx hash means it was broadcast, not that it
-    // landed or succeeded. Only mark posts minted once the chain confirms it.
+    await Promise.all(entries.map((e, i) =>
+      markBroadcast(restUrl, nonce, e.postId, { txHash, contract: collectionContract, license: e.license, index: i })
+    ));
+
     const receipt = await waitForConfirmation(txHash);
     const tokenIds = mintedTokenIdsFromReceipt(receipt, collectionContract);
 
@@ -96,5 +102,18 @@ export async function executeMintBatch({ restUrl, nonce, account, address, colle
     const message = err.message || "Something went wrong";
     await Promise.all(entries.map((e) => markError(restUrl, nonce, e.postId, message)));
     return entries.map((e) => ({ postId: e.postId, error: message }));
+  }
+}
+
+export async function resumeMint({ restUrl, nonce, postId, txHash, contract, license, index }) {
+  try {
+    const receipt = await waitForConfirmation(txHash);
+    const tokenIds = mintedTokenIdsFromReceipt(receipt, contract);
+    await markMinted(restUrl, nonce, postId, { tokenId: tokenIds[index] || "", txHash, contract, license });
+    return { postId, txHash };
+  } catch (err) {
+    const message = err.message || "Something went wrong";
+    await markError(restUrl, nonce, postId, message);
+    return { postId, error: message };
   }
 }

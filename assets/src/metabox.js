@@ -1,5 +1,5 @@
 import { connectWallet } from "./wallet.js";
-import { prepareMint, executeMintBatch } from "./mint-flow.js";
+import { prepareMint, executeMintBatch, resumeMint } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
 
 export async function tokenizePost(postId) {
@@ -33,20 +33,40 @@ export async function tokenizePost(postId) {
 
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("tokenize-content-tokenize-btn");
-  if (!btn) return;
-  btn.addEventListener("click", async () => {
-    const postId = document.getElementById("tokenize-content-metabox").dataset.postId;
-    btn.disabled = true;
-    btn.textContent = "Tokenizing…";
-    try {
-      await tokenizePost(postId);
+  if (btn) {
+    btn.addEventListener("click", async () => {
+      const postId = document.getElementById("tokenize-content-metabox").dataset.postId;
+      btn.disabled = true;
+      btn.textContent = "Tokenizing…";
+      try {
+        await tokenizePost(postId);
+        location.reload();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = "Tokenize Post";
+        alert(err.message || "Something went wrong");
+      }
+    });
+  }
+
+  const checkBtn = document.getElementById("tokenize-content-check-btn");
+  if (checkBtn) {
+    checkBtn.addEventListener("click", async () => {
+      const data = window.tokenizeContentData;
+      checkBtn.disabled = true;
+      checkBtn.textContent = "Checking…";
+      await resumeMint({
+        restUrl: data.restUrl,
+        nonce: data.nonce,
+        postId: document.getElementById("tokenize-content-metabox").dataset.postId,
+        txHash: checkBtn.dataset.txHash,
+        contract: checkBtn.dataset.contract,
+        license: checkBtn.dataset.license,
+        index: Number(checkBtn.dataset.index),
+      });
       location.reload();
-    } catch (err) {
-      btn.disabled = false;
-      btn.textContent = "Tokenize Post";
-      alert(err.message || "Something went wrong");
-    }
-  });
+    });
+  }
 
   const licenseSelect = document.getElementById("tokenize-content-license");
   const licenseCustom = document.getElementById("tokenize-content-license-custom");

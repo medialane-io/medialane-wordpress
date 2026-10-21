@@ -243,4 +243,19 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 		$this->assertSame( '0xaaa', $response->get_data()['posts'][ $posts[0] ]['collectionContract'] );
 		remove_all_filters( 'pre_http_request' );
 	}
+
+	public function test_broadcast_route_records_the_reference_and_keeps_the_post_minting() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create();
+		\TokenizeContent\PostMeta::set_minting( $post_id );
+
+		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/broadcast" );
+		$request->set_body_params( array( 'txHash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY', 'index' => 3 ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'minting', $response->get_data()['status'] );
+		$this->assertSame( '0xabc', \TokenizeContent\PostMeta::get_tx_hash( $post_id ) );
+		$this->assertSame( '3', \TokenizeContent\PostMeta::get_batch_index( $post_id ) );
+	}
 }

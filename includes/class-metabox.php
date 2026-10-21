@@ -25,6 +25,13 @@ class Metabox {
 				<?php if ( PostMeta::STATUS_MINTED === $status ) : ?>
 					<p><?php esc_html_e( 'Minted', 'tokenize-content' ); ?></p>
 					<p><a href="https://voyager.online/tx/<?php echo esc_attr( get_post_meta( $post->ID, PostMeta::KEY_TX_HASH, true ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View transaction', 'tokenize-content' ); ?></a></p>
+				<?php elseif ( PostMeta::STATUS_MINTING === $status && PostMeta::get_tx_hash( $post->ID ) ) : ?>
+					<p><?php esc_html_e( 'In progress', 'tokenize-content' ); ?></p>
+					<button type="button" class="button" id="tokenize-content-check-btn"
+						data-tx-hash="<?php echo esc_attr( PostMeta::get_tx_hash( $post->ID ) ); ?>"
+						data-contract="<?php echo esc_attr( PostMeta::get_contract( $post->ID ) ); ?>"
+						data-license="<?php echo esc_attr( PostMeta::get_license( $post->ID ) ); ?>"
+						data-index="<?php echo esc_attr( PostMeta::get_batch_index( $post->ID ) ); ?>"><?php esc_html_e( 'Check status', 'tokenize-content' ); ?></button>
 				<?php else : ?>
 					<?php $collections = Settings::fetch_live_collections(); ?>
 					<?php if ( count( $collections ) > 1 ) : ?>
