@@ -127,7 +127,6 @@ document.addEventListener("submit", (e) => {
     return;
   }
 
-  const data = window.tokenizeContentData;
   const titles = Object.fromEntries(ids.map((id) => {
     const link = document.querySelector(`#post-${id} .row-title`);
     return [id, link ? link.textContent : ""];
