@@ -54,4 +54,17 @@ class Test_Metabox extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'tokenize-content-tokenize-btn', $html );
 		$this->assertStringNotContainsString( 'tokenize-content-check-btn', $html );
 	}
+
+	public function test_the_editor_says_collections_could_not_be_loaded_when_the_lookup_fails() {
+		\TokenizeContent\Settings::save_wallet_address( '0xbeef01' );
+		update_option( \TokenizeContent\Settings::OPTION_API_KEY, 'test-key' );
+		add_filter( 'pre_http_request', function () {
+			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
+		} );
+
+		$html = $this->render_for( $this->factory->post->create() );
+
+		$this->assertStringContainsString( 'Collections could not be loaded right now', $html );
+		remove_all_filters( 'pre_http_request' );
+	}
 }

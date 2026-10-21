@@ -273,4 +273,50 @@ class Test_Settings extends WP_UnitTestCase {
 
 		$this->assertSame( array( array( 'contract' => '0x000AAA', 'label' => 'General' ) ), Settings::fetch_live_collections() );
 	}
+
+	public function test_checked_fetch_returns_an_error_when_the_request_fails() {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		add_filter( 'pre_http_request', function () {
+			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
+		} );
+
+		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections_checked() );
+	}
+
+	public function test_checked_fetch_returns_an_error_on_a_non_success_status() {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 503 ), 'body' => '' );
+		} );
+
+		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections_checked() );
+	}
+
+	public function test_checked_fetch_returns_an_empty_list_not_an_error_when_the_wallet_has_none() {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array() ) ) );
+		} );
+
+		$this->assertSame( array(), Settings::fetch_live_collections_checked() );
+	}
+
+	public function test_settings_page_says_collections_could_not_be_loaded_instead_of_none_found() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		add_filter( 'pre_http_request', function () {
+			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
+		} );
+
+		ob_start();
+		Settings::render_settings_page();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'Collections could not be loaded right now', $html );
+		$this->assertStringNotContainsString( 'No collections found for this wallet yet', $html );
+	}
 }

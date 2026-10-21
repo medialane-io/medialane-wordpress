@@ -146,6 +146,11 @@ class Settings {
 	// reads from OPTION_COLLECTION_LABELS to decide existence — only to
 	// attach a friendly name to a contract the backend already confirmed.
 	public static function fetch_live_collections(): array {
+		$result = self::fetch_live_collections_checked();
+		return is_wp_error( $result ) ? array() : $result;
+	}
+
+	public static function fetch_live_collections_checked() {
 		$key   = self::get_api_key();
 		$owner = self::get_wallet_address();
 		if ( ! $key || ! $owner ) {
@@ -157,11 +162,11 @@ class Settings {
 			'timeout' => 15,
 		) );
 		if ( is_wp_error( $response ) ) {
-			return array();
+			return $response;
 		}
 		$status = wp_remote_retrieve_response_code( $response );
 		if ( $status < 200 || $status >= 300 ) {
-			return array();
+			return new \WP_Error( 'tokenize_content_collections_unavailable', 'Collections could not be loaded.', array( 'status' => $status ) );
 		}
 		$body  = json_decode( wp_remote_retrieve_body( $response ), true );
 		$items = ( is_array( $body ) && isset( $body['data'] ) && is_array( $body['data'] ) ) ? $body['data'] : array();
@@ -365,7 +370,9 @@ class Settings {
 				<?php submit_button(); ?>
 			</form>
 
-			<?php $collections = self::fetch_live_collections(); ?>
+			<?php $fetched = self::fetch_live_collections_checked(); ?>
+			<?php $load_failed = is_wp_error( $fetched ); ?>
+			<?php $collections = $load_failed ? array() : $fetched; ?>
 			<?php if ( $collections ) : ?>
 				<h2><?php esc_html_e( 'Collections', 'tokenize-content' ); ?></h2>
 				<table class="widefat" style="max-width:640px;">
@@ -386,6 +393,9 @@ class Settings {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+			<?php elseif ( $load_failed ) : ?>
+				<h2><?php esc_html_e( 'Collections', 'tokenize-content' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Collections could not be loaded right now. Reload to try again.', 'tokenize-content' ); ?></p>
 			<?php else : ?>
 				<h2><?php esc_html_e( 'Collections', 'tokenize-content' ); ?></h2>
 				<p class="description"><?php esc_html_e( 'No collections found for this wallet yet. Create one below.', 'tokenize-content' ); ?></p>

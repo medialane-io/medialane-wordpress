@@ -306,4 +306,21 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 
 		$this->assertSame( 400, $response->get_status() );
 	}
+
+	public function test_tokenize_data_reports_a_failed_collections_lookup_instead_of_blank_collections() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		$post_id = $this->factory->post->create();
+		add_filter( 'pre_http_request', function () {
+			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
+		} );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 502, $response->get_status() );
+		remove_all_filters( 'pre_http_request' );
+	}
 }

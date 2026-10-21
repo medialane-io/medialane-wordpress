@@ -33,7 +33,11 @@ class Metabox {
 						data-license="<?php echo esc_attr( PostMeta::get_license( $post->ID ) ); ?>"
 						data-index="<?php echo esc_attr( PostMeta::get_batch_index( $post->ID ) ); ?>"><?php esc_html_e( 'Check status', 'tokenize-content' ); ?></button>
 				<?php else : ?>
-					<?php $collections = Settings::fetch_live_collections(); ?>
+					<?php $fetched = Settings::fetch_live_collections_checked(); ?>
+					<?php $collections = is_wp_error( $fetched ) ? array() : $fetched; ?>
+					<?php if ( is_wp_error( $fetched ) ) : ?>
+						<p class="description"><?php esc_html_e( 'Collections could not be loaded right now. Reload to try again.', 'tokenize-content' ); ?></p>
+					<?php endif; ?>
 					<?php if ( count( $collections ) > 1 ) : ?>
 						<p>
 							<label for="tokenize-content-collection"><?php esc_html_e( 'Collection', 'tokenize-content' ); ?></label>

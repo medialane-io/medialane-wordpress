@@ -138,7 +138,10 @@ class RestProxy {
 			}
 		}
 
-		$live  = Settings::fetch_live_collections();
+		$live = Settings::fetch_live_collections_checked();
+		if ( is_wp_error( $live ) ) {
+			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
+		}
 		$posts = array();
 		foreach ( $ids as $id ) {
 			$post = get_post( $id );
