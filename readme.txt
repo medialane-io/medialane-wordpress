@@ -14,7 +14,7 @@ Turn your posts into protected, licensed IP assets with Medialane.
 
 Tokenize posts as licensed IP assets. Choose a Creative Commons license or reserve all rights, and set a policy on AI training use.
 
-Tokenize one post from its editor, or several at once from the Posts list. Organize posts into collections, with categories routed to a collection. Tokenized posts show a public badge.
+Tokenize one post from its editor, or several at once from the Posts list. Only published posts without a password can be tokenized. Organize posts into collections, with categories routed to a collection. Tokenized posts show a public badge.
 
 == Installation ==
 

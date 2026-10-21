@@ -361,7 +361,11 @@ class RestProxy {
 	}
 
 	public static function upload_featured_image( \WP_REST_Request $request ) {
-		$thumbnail = (int) get_post_thumbnail_id( self::post_id( $request ) );
+		$post = get_post( self::post_id( $request ) );
+		if ( ! $post || ! Eligibility::is_tokenizable( $post ) ) {
+			return new \WP_Error( 'tokenize_content_not_eligible', Eligibility::message(), array( 'status' => 422 ) );
+		}
+		$thumbnail = (int) get_post_thumbnail_id( $post->ID );
 		if ( ! $thumbnail ) {
 			return rest_ensure_response( array( 'data' => array( 'url' => null ) ) );
 		}

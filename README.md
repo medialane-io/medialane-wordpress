@@ -4,10 +4,11 @@ WordPress plugin that turns posts into licensed IP assets on [Medialane](https:/
 
 ## Features
 
-- Tokenize a post from its editor, or several posts at once from the Posts list.
+- Tokenize a post from its editor, or several posts at once from the Posts list. Only published posts without a password can be tokenized.
 - Choose a license and an AI training policy.
 - Organize posts into collections, with categories routed to a collection.
 - A public badge on tokenized posts.
+- Translatable interface.
 
 ## Requirements
 

@@ -580,4 +580,18 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $mine ) );
 		$this->assertSame( 'none', \TokenizeContent\PostMeta::get_status( $other ) );
 	}
+
+	public function test_featured_image_upload_is_refused_for_a_post_that_is_not_public() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+		$draft      = $this->factory->post->create( array( 'post_status' => 'draft' ) );
+		$attachment = $this->factory->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg', $draft );
+		set_post_thumbnail( $draft, $attachment );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$draft}/featured-image" ) );
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertNull( $captured );
+	}
 }
