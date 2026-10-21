@@ -5,9 +5,8 @@ a Starknet-based protocol for programmable intellectual property. Only the site
 admin connects a wallet. Authors are identified by their WordPress email and
 never need one.
 
-Status: the JS suite (`npm test`) and the PHP suite (`phpunit`) both pass, verified
-against a live WP core test install and a real local WordPress activation. See
-[Development](#development) for how that was verified.
+Status: the JS suite (`npm test`) and the PHP suite (`phpunit`) pass. The wallet
+connect and signing flow has not been verified in a real browser with a real wallet.
 
 ## What it does
 
@@ -85,18 +84,9 @@ phpunit -c phpunit.xml.dist   # runs the PHP test suite (requires the WP core te
 
 To run `phpunit` locally, `WP_TESTS_DIR` needs to point at a real WordPress core
 test-library checkout. `bin/install-wp-tests.sh <db-name> <db-user> <db-pass>
-[db-host] [wp-version]` sets one up. It needs `svn` and a reachable MySQL server.
+[db-host] [wp-version]` sets one up. It needs `svn` and a reachable MySQL server. The
+test library also needs `yoast/phpunit-polyfills`; point `WP_TESTS_PHPUNIT_POLYFILLS_PATH` at it.
 `.github/workflows/ci.yml` runs the JS suite and the PHP suite on every push and PR.
-
-This code has been checked against the real routes it depends on in
-[`medialane-backend`](https://github.com/medialane-io/medialane-backend), and
-verified with a real local WordPress activation (`wp-cli`, PHP's built-in
-server, real posts, real users). What remains unverified is the actual
-wallet-extension connect and sign flow in a real browser with a real
-Starknet wallet. If you set one up, please open issues for anything that
-doesn't work as documented.
-
-See [`CLAUDE.md`](CLAUDE.md) for a closer look at the internal architecture.
 
 ## Security
 

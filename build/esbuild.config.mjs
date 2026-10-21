@@ -10,6 +10,6 @@ await esbuild.build({
   outdir: "assets/dist",
   format: "iife",
   target: "es2020",
-  sourcemap: true,
+  sourcemap: false,
   minify: true,
 });

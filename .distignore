@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+.distignore
+.phpunit.result.cache
+assets/src
+bin
+build
+node_modules
+package-lock.json
+package.json
+phpunit.xml.dist
+tests
+vitest.config.js

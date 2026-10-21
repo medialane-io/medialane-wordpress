@@ -45,4 +45,3 @@ ${JSON.stringify(o,null,2)}`}catch(c){let l=String(c).replace(/[\r\n]/g,"");a+=`
 @noble/curves/esm/secp256k1.js:
   (*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) *)
 */
-//# sourceMappingURL=settings.js.map
