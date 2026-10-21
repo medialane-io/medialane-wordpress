@@ -2,6 +2,7 @@ import { __ } from "@wordpress/i18n";
 import { getStarknet } from "get-starknet-core";
 import { RpcProvider, WalletAccount, stark, hash } from "starknet";
 import { rpcConfig } from "./api.js";
+import { chooseWallet } from "./wallet-picker.js";
 
 export function createProvider() {
   return new RpcProvider(rpcConfig());
@@ -12,7 +13,8 @@ export async function connectWallet() {
   if (!wallets || wallets.length === 0) {
     throw new Error(__("No Starknet wallet found. Install Ready or Braavos.", "tokenize-content"));
   }
-  const account = await WalletAccount.connect(createProvider(), wallets[0]);
+  const wallet = await chooseWallet(wallets);
+  const account = await WalletAccount.connect(createProvider(), wallet);
   if (!account?.address) {
     throw new Error(__("Wallet did not return an address.", "tokenize-content"));
   }

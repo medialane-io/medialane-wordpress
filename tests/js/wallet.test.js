@@ -6,6 +6,8 @@ const walletAccountConnect = vi.fn();
 vi.mock("get-starknet-core", () => ({
   getStarknet: () => ({ getAvailableWallets }),
 }));
+const chooseWallet = vi.fn();
+vi.mock("../../assets/src/wallet-picker.js", () => ({ chooseWallet: (...args) => chooseWallet(...args) }));
 vi.mock("starknet", () => ({
   RpcProvider: class { constructor(options) { this.options = options; } },
   WalletAccount: { connect: (...args) => walletAccountConnect(...args) },
@@ -22,6 +24,27 @@ describe("connectWallet", () => {
     global.window = { tokenizeContentData: { restUrl: "/wp-json/tokenize-content/v1", nonce: "abc" } };
     getAvailableWallets.mockReset();
     walletAccountConnect.mockReset();
+    chooseWallet.mockReset().mockImplementation(async (wallets) => wallets[0]);
+  });
+
+  it("connects the wallet the person chose when several are installed", async () => {
+    const wallets = [{ id: "argentX" }, { id: "braavos" }];
+    getAvailableWallets.mockResolvedValue(wallets);
+    chooseWallet.mockResolvedValue(wallets[1]);
+    walletAccountConnect.mockResolvedValue({ address: "0xabc" });
+
+    await connectWallet();
+
+    expect(chooseWallet).toHaveBeenCalledWith(wallets);
+    expect(walletAccountConnect).toHaveBeenCalledWith(expect.anything(), wallets[1]);
+  });
+
+  it("connects nothing when the person cancels the choice", async () => {
+    getAvailableWallets.mockResolvedValue([{ id: "a" }, { id: "b" }]);
+    chooseWallet.mockRejectedValue(new Error("No wallet selected."));
+
+    await expect(connectWallet()).rejects.toThrow("No wallet selected.");
+    expect(walletAccountConnect).not.toHaveBeenCalled();
   });
 
   it("reads the chain through the site's own proxy, not a public node", async () => {
@@ -40,7 +63,7 @@ describe("connectWallet", () => {
     expect(walletAccountConnect).not.toHaveBeenCalled();
   });
 
-  it("connects the first available wallet via WalletAccount.connect", async () => {
+  it("connects the single available wallet via WalletAccount.connect", async () => {
     const wallet = { id: "argentX", name: "Ready" };
     getAvailableWallets.mockResolvedValue([wallet]);
     walletAccountConnect.mockResolvedValue({ address: "0xabc" });
