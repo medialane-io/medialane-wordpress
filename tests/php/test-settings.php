@@ -15,6 +15,10 @@ class Test_Settings extends WP_UnitTestCase {
 		$this->assertSame( 'from-the-database', Settings::get_api_key() );
 	}
 
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
 	public function test_get_api_key_prefers_the_constant_when_defined() {
 		update_option( Settings::OPTION_API_KEY, 'from-the-database' );
 		if ( ! defined( 'TOKENIZE_CONTENT_API_KEY' ) ) {
