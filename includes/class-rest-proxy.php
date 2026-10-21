@@ -77,6 +77,11 @@ class RestProxy {
 			'callback'            => array( __CLASS__, 'forward_get_token' ),
 			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
 		) );
+		register_rest_route( self::NAMESPACE, '/tokenize-data', array(
+			'methods'             => 'POST',
+			'callback'            => array( __CLASS__, 'tokenize_data' ),
+			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
+		) );
 		register_rest_route( self::NAMESPACE, '/settings/collection', array(
 			'methods'             => 'POST',
 			'callback'            => array( __CLASS__, 'save_collection' ),
@@ -117,6 +122,34 @@ class RestProxy {
 			'callback'            => array( __CLASS__, 'save_error' ),
 			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
 		) );
+	}
+
+	public static function tokenize_data( \WP_REST_Request $request ) {
+		$ids = $request->get_param( 'ids' );
+		$ids = is_array( $ids ) ? array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) ) : array();
+		foreach ( $ids as $id ) {
+			if ( ! current_user_can( 'edit_post', $id ) ) {
+				return new \WP_Error( 'tokenize_content_forbidden', __( "You can't tokenize a post you don't have edit access to.", 'tokenize-content' ), array( 'status' => 403 ) );
+			}
+		}
+
+		$live  = Settings::fetch_live_collections();
+		$posts = array();
+		foreach ( $ids as $id ) {
+			$post = get_post( $id );
+			if ( ! $post || 'post' !== $post->post_type ) {
+				continue;
+			}
+			$posts[ $id ] = array(
+				'title'              => get_the_title( $post ),
+				'excerpt'            => get_the_excerpt( $post ),
+				'content'            => $post->post_content,
+				'image'              => has_post_thumbnail( $post ) ? get_the_post_thumbnail_url( $post, 'large' ) : '',
+				'authorEmail'        => get_the_author_meta( 'user_email', $post->post_author ),
+				'collectionContract' => Settings::resolve_collection_for_post( $id, $live ),
+			);
+		}
+		return rest_ensure_response( array( 'posts' => $posts ) );
 	}
 
 	public static function save_minting( \WP_REST_Request $request ) {

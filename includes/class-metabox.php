@@ -62,20 +62,14 @@ class Metabox {
 		}
 		global $post;
 		wp_enqueue_script( 'tokenize-content-metabox', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/metabox.js', array(), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
-		$live_collections = Settings::fetch_live_collections();
 		wp_localize_script( 'tokenize-content-metabox', 'tokenizeContentData', array(
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
-			'collectionContract' => $post ? Settings::resolve_collection_for_post( $post->ID, $live_collections ) : Settings::get_default_collection(),
+			'collectionContract' => Settings::get_default_collection(),
 			'contentScope'       => Settings::get_content_scope(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
 			'postId'             => $post ? $post->ID : 0,
-			'postTitle'          => $post ? get_the_title( $post ) : '',
-			'postExcerpt'        => $post ? get_the_excerpt( $post ) : '',
-			'postContent'        => $post ? $post->post_content : '',
-			'featuredImageUrl'   => $post && has_post_thumbnail( $post ) ? get_the_post_thumbnail_url( $post, 'large' ) : '',
-			'authorEmail'        => $post ? get_the_author_meta( 'user_email', $post->post_author ) : '',
 		) );
 	}
 }

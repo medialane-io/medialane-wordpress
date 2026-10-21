@@ -1,5 +1,6 @@
 import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch } from "./mint-flow.js";
+import { getTokenizeData } from "./api.js";
 
 export async function tokenizePost(postId) {
   const data = window.tokenizeContentData;
@@ -9,13 +10,15 @@ export async function tokenizePost(postId) {
   const license = licenseSelect.value === "Custom" ? licenseCustom.value : licenseSelect.value;
 
   const { address, account } = await connectWallet();
-  const body = data.contentScope === "full" ? data.postContent : data.postExcerpt;
+  const { posts } = await getTokenizeData([postId]);
+  const post = posts[postId];
+  const body = data.contentScope === "full" ? post.content : post.excerpt;
   const collectionSelect = document.getElementById("tokenize-content-collection");
-  const collectionContract = (collectionSelect && collectionSelect.value) || data.collectionContract;
+  const collectionContract = (collectionSelect && collectionSelect.value) || post.collectionContract || data.collectionContract;
 
   const entry = await prepareMint({
-    postId, title: data.postTitle, body, image: data.featuredImageUrl, license, address,
-    collectionContract, authorEmail: data.authorEmail,
+    postId, title: post.title, body, image: post.image, license, address,
+    collectionContract, authorEmail: post.authorEmail,
     aiPolicy: data.aiPolicyDefault,
   });
   const [result] = await executeMintBatch({

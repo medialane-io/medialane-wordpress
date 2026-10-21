@@ -16,19 +16,25 @@ vi.mock("../../assets/src/api.js", () => ({
   executeSponsoredInvoke: vi.fn().mockResolvedValue({ data: { transactionHash: "0xtx" } }),
   buildSponsoredDeploy: vi.fn().mockResolvedValue({ data: { typedData: {}, deployment: {}, calls: [] } }),
   provisionRecipientWallet: vi.fn().mockResolvedValue({ data: { walletAddress: "0xauthorwallet" } }),
+  getTokenizeData: vi.fn(),
 }));
 
+async function serverPost(post) {
+  const { getTokenizeData } = await import("../../assets/src/api.js");
+  getTokenizeData.mockResolvedValue({ posts: { 1: post } });
+  return getTokenizeData;
+}
+
 describe("tokenizePost", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await serverPost({
+      title: "Hello", excerpt: "World", content: "Full body", image: "",
+      authorEmail: "author@example.com", collectionContract: "0xcol",
+    });
     global.window = {
       tokenizeContentData: {
         collectionContract: "0xcol",
         contentScope: "excerpt",
-        postTitle: "Hello",
-        postExcerpt: "World",
-        postContent: "Full body",
-        featuredImageUrl: "",
-        authorEmail: "author@example.com",
         restUrl: "/wp-json/tokenize-content/v1",
         nonce: "abc",
       },
@@ -45,7 +51,25 @@ describe("tokenizePost", () => {
 
   it("throws when no collection is configured", async () => {
     global.window.tokenizeContentData.collectionContract = "";
+    await serverPost({
+      title: "Hello", excerpt: "World", content: "Full body", image: "",
+      authorEmail: "author@example.com", collectionContract: "",
+    });
     await expect(tokenizePost(1)).rejects.toThrow("No collection configured");
+  });
+
+  it("reads the post's data from the server at click time, not from the page", async () => {
+    const getTokenizeData = await serverPost({
+      title: "Fresh title", excerpt: "e", content: "c", image: "",
+      authorEmail: "author@example.com", collectionContract: "0xcol",
+    });
+    const { uploadJson } = await import("../../assets/src/api.js");
+    uploadJson.mockClear();
+
+    await tokenizePost(1);
+
+    expect(getTokenizeData).toHaveBeenCalledWith([1]);
+    expect(uploadJson).toHaveBeenCalledWith(expect.objectContaining({ name: "Fresh title" }));
   });
 
   it("uploads metadata, mints, and marks the post minted", async () => {

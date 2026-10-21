@@ -14,6 +14,8 @@ class Test_Bulk_Action extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
+		wp_dequeue_script( 'tokenize-content-bulk-action' );
+		wp_deregister_script( 'tokenize-content-bulk-action' );
 		set_current_screen( 'front' );
 		parent::tear_down();
 	}
@@ -56,6 +58,25 @@ class Test_Bulk_Action extends WP_UnitTestCase {
 		$output = $this->capture_notice();
 
 		$this->assertSame( '', $output );
+	}
+
+	public function test_enqueue_adds_no_script_for_a_user_without_the_tokenize_capability() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'contributor' ) ) );
+
+		BulkAction::enqueue( 'edit.php' );
+
+		$this->assertFalse( wp_script_is( 'tokenize-content-bulk-action', 'enqueued' ) );
+	}
+
+	public function test_enqueue_localizes_no_post_content_or_author_email() {
+		$author = $this->factory->user->create( array( 'role' => 'author', 'user_email' => 'writer@example.org' ) );
+		$this->factory->post->create( array( 'post_status' => 'publish', 'post_author' => $author, 'post_content' => 'SECRET BODY TEXT' ) );
+
+		BulkAction::enqueue( 'edit.php' );
+
+		$data = (string) wp_scripts()->get_data( 'tokenize-content-bulk-action', 'data' );
+		$this->assertStringNotContainsString( 'writer@example.org', $data );
+		$this->assertStringNotContainsString( 'SECRET BODY TEXT', $data );
 	}
 
 	private function capture_notice(): string {

@@ -54,26 +54,10 @@ class BulkAction {
 	}
 
 	public static function enqueue( string $hook ) {
-		if ( 'edit.php' !== $hook ) {
+		if ( 'edit.php' !== $hook || ! current_user_can( Settings::CAP_TOKENIZE ) ) {
 			return;
 		}
-		// Fetched once per page load, not once per post — resolve_collection_for_post()
-		// only ever validates against this single fetch.
-		$live_collections = Settings::fetch_live_collections();
-		$summaries        = array();
-		foreach ( self::get_pending_posts() as $p ) {
-			$summaries[ $p->ID ] = array(
-				'title'             => get_the_title( $p ),
-				'excerpt'           => get_the_excerpt( $p ),
-				'content'           => $p->post_content,
-				'image'             => has_post_thumbnail( $p ) ? get_the_post_thumbnail_url( $p, 'large' ) : '',
-				'authorEmail'       => get_the_author_meta( 'user_email', $p->post_author ),
-				'collectionContract' => Settings::resolve_collection_for_post( $p->ID, $live_collections ),
-			);
-		}
 		wp_enqueue_script( 'tokenize-content-bulk-action', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/bulk-action.js', array(), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
-		// Same global name as class-metabox.php/class-settings.php use — safe
-		// because each only enqueues on its own mutually exclusive admin screen.
 		wp_localize_script( 'tokenize-content-bulk-action', 'tokenizeContentData', array(
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
@@ -81,7 +65,6 @@ class BulkAction {
 			'contentScope'       => Settings::get_content_scope(),
 			'licenseDefault'     => Settings::get_license_default(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
-			'posts'              => $summaries,
 		) );
 	}
 }

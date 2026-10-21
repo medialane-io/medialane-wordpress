@@ -32,6 +32,10 @@ export function uploadFile(file) {
   return request("/metadata/upload-file", { method: "POST", body: form });
 }
 
+export function getTokenizeData(ids) {
+  return request("/tokenize-data", { method: "POST", body: JSON.stringify({ ids }) });
+}
+
 export function createCollectionIntent(params) {
   return request("/intents/create-collection", { method: "POST", body: JSON.stringify(params) });
 }

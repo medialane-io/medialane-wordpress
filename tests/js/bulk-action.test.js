@@ -16,10 +16,17 @@ vi.mock("../../assets/src/api.js", () => ({
   executeSponsoredInvoke: vi.fn().mockResolvedValue({ data: { transactionHash: "0xtx" } }),
   buildSponsoredDeploy: vi.fn().mockResolvedValue({ data: { typedData: {}, deployment: {}, calls: [] } }),
   provisionRecipientWallet: vi.fn().mockResolvedValue({ data: { walletAddress: "0xauthorwallet" } }),
+  getTokenizeData: vi.fn(),
 }));
 
+async function serverPosts(posts) {
+  const { getTokenizeData } = await import("../../assets/src/api.js");
+  getTokenizeData.mockResolvedValue({ posts });
+  return getTokenizeData;
+}
+
 describe("tokenizeBulk", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     global.window = {
       tokenizeContentData: {
         collectionContract: "0xcol",
@@ -27,13 +34,26 @@ describe("tokenizeBulk", () => {
         licenseDefault: "CC BY-SA",
         restUrl: "/wp-json/tokenize-content/v1",
         nonce: "abc",
-        posts: {
-          1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
-          2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com" },
-        },
       },
     };
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    await serverPosts({
+      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
+      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com" },
+    });
+  });
+
+  it("fetches the selected posts' data from the server once, by id", async () => {
+    const getTokenizeData = await serverPosts({
+      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
+      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com" },
+    });
+    getTokenizeData.mockClear();
+
+    await tokenizeBulk(["1", "2"], () => {});
+
+    expect(getTokenizeData).toHaveBeenCalledTimes(1);
+    expect(getTokenizeData).toHaveBeenCalledWith(["1", "2"]);
   });
 
   it("prepares every post, then mints the whole batch in one sponsored transaction", async () => {
@@ -60,10 +80,10 @@ describe("tokenizeBulk", () => {
   });
 
   it("groups posts by their resolved collection into separate batches", async () => {
-    global.window.tokenizeContentData.posts = {
+    await serverPosts({
       1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com", collectionContract: "0xnews" },
       2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com", collectionContract: "0xsports" },
-    };
+    });
     const { executeSponsoredInvoke, createMintIntent } = await import("../../assets/src/api.js");
     executeSponsoredInvoke.mockClear();
     createMintIntent.mockClear();
@@ -77,17 +97,17 @@ describe("tokenizeBulk", () => {
 
   it("throws when a post has no resolvable collection at all", async () => {
     global.window.tokenizeContentData.collectionContract = "";
-    global.window.tokenizeContentData.posts = {
+    await serverPosts({
       1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com", collectionContract: "" },
-    };
+    });
     await expect(tokenizeBulk(["1"], () => {})).rejects.toThrow("No collection configured");
   });
 
   it("splits more than 25 posts into multiple batches", async () => {
     const postIds = Array.from({ length: 30 }, (_, i) => String(i + 1));
-    global.window.tokenizeContentData.posts = Object.fromEntries(
+    await serverPosts(Object.fromEntries(
       postIds.map((id) => [id, { title: "t", excerpt: "e", content: "c", image: "", authorEmail: `author${id}@example.com` }])
-    );
+    ));
 
     const { executeSponsoredInvoke } = await import("../../assets/src/api.js");
     executeSponsoredInvoke.mockClear();
@@ -100,8 +120,7 @@ describe("tokenizeBulk", () => {
 
 describe("buildStatusPanel", () => {
   it("lists every post and updates its row as progress comes in", () => {
-    const data = { posts: { 1: { title: "A" }, 2: { title: "B" } } };
-    const panel = buildStatusPanel(["1", "2"], data);
+    const panel = buildStatusPanel(["1", "2"], { 1: "A", 2: "B" });
 
     const rows = panel.element.querySelectorAll("li");
     expect(rows[0].textContent).toBe("A — Waiting…");

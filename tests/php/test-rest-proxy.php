@@ -189,4 +189,58 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( array( $cat_id => '0xbbb22' ), Settings::get_category_map() );
 	}
+
+	public function test_tokenize_data_returns_what_the_client_needs_for_each_requested_post() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$author = $this->factory->user->create( array( 'role' => 'author', 'user_email' => 'writer@example.org' ) );
+		$post_id = $this->factory->post->create( array( 'post_author' => $author, 'post_title' => 'Hello', 'post_content' => 'Body text', 'post_excerpt' => 'Short' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = $response->get_data()['posts'][ $post_id ];
+		$this->assertSame( 'Hello', $post['title'] );
+		$this->assertSame( 'Body text', $post['content'] );
+		$this->assertSame( 'Short', $post['excerpt'] );
+		$this->assertSame( 'writer@example.org', $post['authorEmail'] );
+		$this->assertArrayHasKey( 'collectionContract', $post );
+	}
+
+	public function test_tokenize_data_is_forbidden_when_any_requested_post_is_not_editable_by_the_user() {
+		$other_post = $this->factory->post->create();
+		$mine       = $this->factory->user->create( array( 'role' => 'author' ) );
+		get_role( 'author' )->add_cap( Settings::CAP_TOKENIZE );
+		wp_set_current_user( $mine );
+		$own_post = $this->factory->post->create( array( 'post_author' => $mine ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $own_post, $other_post ) ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 403, $response->get_status() );
+		get_role( 'author' )->remove_cap( Settings::CAP_TOKENIZE );
+	}
+
+	public function test_tokenize_data_fetches_the_live_collections_once_for_many_posts() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		$posts = $this->factory->post->create_many( 3 );
+
+		$calls = 0;
+		add_filter( 'pre_http_request', function () use ( &$calls ) {
+			$calls++;
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0xaaa' ) ) ) ) );
+		} );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => $posts ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 1, $calls );
+		$this->assertSame( '0xaaa', $response->get_data()['posts'][ $posts[0] ]['collectionContract'] );
+		remove_all_filters( 'pre_http_request' );
+	}
 }

@@ -1,5 +1,6 @@
 import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch } from "./mint-flow.js";
+import { getTokenizeData } from "./api.js";
 
 const MAX_BATCH_SIZE = 25;
 
@@ -16,10 +17,11 @@ function chunk(array, size) {
 export async function tokenizeBulk(postIds, onProgress) {
   const data = window.tokenizeContentData;
   const { address, account } = await connectWallet();
+  const { posts } = await getTokenizeData(postIds);
 
   const entriesByCollection = new Map();
   for (const postId of postIds) {
-    const post = data.posts[postId];
+    const post = posts[postId];
     if (!post) continue;
     const collectionContract = post.collectionContract || data.collectionContract;
     if (!collectionContract) {
@@ -55,7 +57,7 @@ const STATUS_LABEL = {
   error: "Failed",
 };
 
-export function buildStatusPanel(postIds, data) {
+export function buildStatusPanel(postIds, titles) {
   const panel = document.createElement("div");
   panel.id = "tokenize-content-bulk-status";
   panel.className = "notice notice-info";
@@ -69,9 +71,8 @@ export function buildStatusPanel(postIds, data) {
   list.style.margin = "8px 0 0";
   const rows = {};
   for (const postId of postIds) {
-    const post = data.posts[postId];
     const row = document.createElement("li");
-    row.textContent = `${post ? post.title : `#${postId}`} — Waiting…`;
+    row.textContent = `${titles[postId] || `#${postId}`} — Waiting…`;
     list.appendChild(row);
     rows[postId] = row;
   }
@@ -82,8 +83,7 @@ export function buildStatusPanel(postIds, data) {
     update(postId, status, message) {
       const row = rows[postId];
       if (!row) return;
-      const post = data.posts[postId];
-      const title = post ? post.title : `#${postId}`;
+      const title = titles[postId] || `#${postId}`;
       const label = STATUS_LABEL[status] || status;
       row.textContent = `${title} — ${label}${message ? `: ${message}` : ""}`;
     },
@@ -104,7 +104,11 @@ document.addEventListener("submit", (e) => {
   }
 
   const data = window.tokenizeContentData;
-  const status = buildStatusPanel(ids, data);
+  const titles = Object.fromEntries(ids.map((id) => {
+    const link = document.querySelector(`#post-${id} .row-title`);
+    return [id, link ? link.textContent : ""];
+  }));
+  const status = buildStatusPanel(ids, titles);
   const heading = document.querySelector(".wp-heading-inline") || document.querySelector(".wrap h1");
   if (heading && heading.parentNode) {
     heading.parentNode.insertBefore(status.element, heading.nextSibling);
