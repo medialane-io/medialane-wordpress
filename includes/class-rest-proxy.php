@@ -132,16 +132,20 @@ class RestProxy {
 		if ( is_wp_error( $live ) ) {
 			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
 		}
+		$scope = Settings::get_content_scope();
 		$posts = array();
 		foreach ( $ids as $id ) {
 			$post = get_post( $id );
 			if ( ! $post || 'post' !== $post->post_type ) {
 				continue;
 			}
+			if ( ! Eligibility::is_tokenizable( $post ) ) {
+				$posts[ $id ] = array( 'error' => Eligibility::message() );
+				continue;
+			}
 			$posts[ $id ] = array(
 				'title'              => get_the_title( $post ),
-				'excerpt'            => get_the_excerpt( $post ),
-				'content'            => $post->post_content,
+				'description'        => Description::plain_text( $post, $scope ),
 				'image'              => has_post_thumbnail( $post ) ? get_the_post_thumbnail_url( $post, 'large' ) : '',
 				'authorEmail'        => get_the_author_meta( 'user_email', $post->post_author ),
 				'collectionContract' => Settings::resolve_collection_for_post( $id, $live ),
@@ -152,6 +156,10 @@ class RestProxy {
 
 	public static function save_minting( \WP_REST_Request $request ) {
 		$post_id = (int) $request->get_param( 'id' );
+		$post    = get_post( $post_id );
+		if ( ! $post || ! Eligibility::is_tokenizable( $post ) ) {
+			return new \WP_Error( 'tokenize_content_not_eligible', Eligibility::message(), array( 'status' => 422 ) );
+		}
 		PostMeta::set_minting( $post_id );
 		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
 	}

@@ -30,7 +30,6 @@ describe("tokenizeBulk", () => {
     global.window = {
       tokenizeContentData: {
         collectionContract: "0xcol",
-        contentScope: "excerpt",
         licenseDefault: "CC BY-SA",
         restUrl: "/wp-json/tokenize-content/v1",
         nonce: "abc",
@@ -38,9 +37,30 @@ describe("tokenizeBulk", () => {
     };
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     await serverPosts({
-      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
-      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com" },
+      1: { title: "A", description: "a", image: "", authorEmail: "a@example.com" },
+      2: { title: "B", description: "b", image: "", authorEmail: "b@example.com" },
     });
+  });
+
+  it("uploads the server-rendered description as the token's description", async () => {
+    const { uploadJson } = await import("../../assets/src/api.js");
+    uploadJson.mockClear();
+
+    await tokenizeBulk(["1"], () => {});
+
+    expect(uploadJson).toHaveBeenCalledWith(expect.objectContaining({ name: "A", description: "a" }));
+  });
+
+  it("reports an ineligible post from the server's message without writing to it", async () => {
+    await serverPosts({ 1: { error: "Only published posts without a password can be tokenized." } });
+    const progress = [];
+
+    const result = await tokenizeBulk(["1"], (id, status, message) => progress.push(`${id}:${status}:${message || ""}`));
+
+    expect(progress).toContain("1:error:Only published posts without a password can be tokenized.");
+    const paths = global.fetch.mock.calls.map((call) => call[0]);
+    expect(paths).not.toContain("/wp-json/tokenize-content/v1/posts/1/error");
+    expect(result).toEqual({ minted: 0, failed: 1 });
   });
 
   it("refuses to start when the connected wallet is not the site's saved wallet", async () => {
@@ -54,8 +74,8 @@ describe("tokenizeBulk", () => {
 
   it("fetches the selected posts' data from the server once, by id", async () => {
     const getTokenizeData = await serverPosts({
-      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
-      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com" },
+      1: { title: "A", description: "a", image: "", authorEmail: "a@example.com" },
+      2: { title: "B", description: "b", image: "", authorEmail: "b@example.com" },
     });
     getTokenizeData.mockClear();
 
@@ -90,8 +110,8 @@ describe("tokenizeBulk", () => {
 
   it("groups posts by their resolved collection into separate batches", async () => {
     await serverPosts({
-      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com", collectionContract: "0xnews" },
-      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "b@example.com", collectionContract: "0xsports" },
+      1: { title: "A", description: "a", image: "", authorEmail: "a@example.com", collectionContract: "0xnews" },
+      2: { title: "B", description: "b", image: "", authorEmail: "b@example.com", collectionContract: "0xsports" },
     });
     const { executeSponsoredInvoke, createMintIntent } = await import("../../assets/src/api.js");
     executeSponsoredInvoke.mockClear();
@@ -107,7 +127,7 @@ describe("tokenizeBulk", () => {
   it("marks a post errored, and mints nothing for it, when it has no resolvable collection", async () => {
     global.window.tokenizeContentData.collectionContract = "";
     await serverPosts({
-      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com", collectionContract: "" },
+      1: { title: "A", description: "a", image: "", authorEmail: "a@example.com", collectionContract: "" },
     });
     const { executeSponsoredInvoke } = await import("../../assets/src/api.js");
     executeSponsoredInvoke.mockClear();
@@ -122,9 +142,9 @@ describe("tokenizeBulk", () => {
 
   it("keeps going when one post fails to prepare, marking only that post errored", async () => {
     await serverPosts({
-      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
-      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "" },
-      3: { title: "C", excerpt: "c", content: "cc", image: "", authorEmail: "c@example.com" },
+      1: { title: "A", description: "a", image: "", authorEmail: "a@example.com" },
+      2: { title: "B", description: "b", image: "", authorEmail: "" },
+      3: { title: "C", description: "c", image: "", authorEmail: "c@example.com" },
     });
     const { executeSponsoredInvoke } = await import("../../assets/src/api.js");
     executeSponsoredInvoke.mockClear();
@@ -151,7 +171,7 @@ describe("tokenizeBulk", () => {
   it("splits more than 25 posts into multiple batches", async () => {
     const postIds = Array.from({ length: 30 }, (_, i) => String(i + 1));
     await serverPosts(Object.fromEntries(
-      postIds.map((id) => [id, { title: "t", excerpt: "e", content: "c", image: "", authorEmail: `author${id}@example.com` }])
+      postIds.map((id) => [id, { title: "t", description: "e", image: "", authorEmail: `author${id}@example.com` }])
     ));
 
     const { executeSponsoredInvoke } = await import("../../assets/src/api.js");

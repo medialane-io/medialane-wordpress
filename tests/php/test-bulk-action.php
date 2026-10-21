@@ -42,6 +42,12 @@ class Test_Bulk_Action extends Tokenize_Test_Case {
 		$this->assertStringContainsString( 'Tokenize with Medialane', $output );
 	}
 
+	public function test_notice_ignores_password_protected_posts() {
+		$this->factory->post->create( array( 'post_status' => 'publish', 'post_password' => 'secret' ) );
+
+		$this->assertSame( '', $this->capture_notice() );
+	}
+
 	public function test_no_notice_outside_the_posts_list_screen() {
 		$this->factory->post->create( array( 'post_status' => 'publish' ) );
 		set_current_screen( 'dashboard' );

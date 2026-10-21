@@ -20,7 +20,7 @@ class BulkAction {
 	}
 
 	private static function get_pending_posts(): array {
-		$posts = get_posts( array( 'post_type' => 'post', 'posts_per_page' => 200, 'post_status' => 'publish' ) );
+		$posts = get_posts( array( 'post_type' => 'post', 'posts_per_page' => 200, 'post_status' => 'publish', 'has_password' => false ) );
 		return array_filter( $posts, function ( $p ) {
 			return PostMeta::STATUS_MINTED !== PostMeta::get_status( $p->ID );
 		} );
@@ -62,7 +62,6 @@ class BulkAction {
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
 			'collectionContract' => Settings::get_default_collection(),
-			'contentScope'       => Settings::get_content_scope(),
 			'licenseDefault'     => Settings::get_license_default(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
 		) );

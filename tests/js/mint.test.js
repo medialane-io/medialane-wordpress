@@ -28,13 +28,12 @@ async function serverPost(post) {
 describe("tokenizePost", () => {
   beforeEach(async () => {
     await serverPost({
-      title: "Hello", excerpt: "World", content: "Full body", image: "",
+      title: "Hello", description: "World", image: "",
       authorEmail: "author@example.com", collectionContract: "0xcol",
     });
     global.window = {
       tokenizeContentData: {
         collectionContract: "0xcol",
-        contentScope: "excerpt",
         restUrl: "/wp-json/tokenize-content/v1",
         nonce: "abc",
       },
@@ -52,7 +51,7 @@ describe("tokenizePost", () => {
   it("throws when no collection is configured", async () => {
     global.window.tokenizeContentData.collectionContract = "";
     await serverPost({
-      title: "Hello", excerpt: "World", content: "Full body", image: "",
+      title: "Hello", description: "World", image: "",
       authorEmail: "author@example.com", collectionContract: "",
     });
     await expect(tokenizePost(1)).rejects.toThrow("No collection configured");
@@ -60,7 +59,7 @@ describe("tokenizePost", () => {
 
   it("refuses to tokenize when the connected wallet is not the site's saved wallet", async () => {
     global.window.tokenizeContentData.walletAddress = "0xdef";
-    const getTokenizeData = await serverPost({ title: "t", excerpt: "e", content: "c", image: "", authorEmail: "a@example.com", collectionContract: "0xcol" });
+    const getTokenizeData = await serverPost({ title: "t", description: "e", image: "", authorEmail: "a@example.com", collectionContract: "0xcol" });
     getTokenizeData.mockClear();
 
     await expect(tokenizePost(1)).rejects.toThrow("not the wallet saved for this site");
@@ -69,7 +68,7 @@ describe("tokenizePost", () => {
 
   it("reads the post's data from the server at click time, not from the page", async () => {
     const getTokenizeData = await serverPost({
-      title: "Fresh title", excerpt: "e", content: "c", image: "",
+      title: "Fresh title", description: "e", image: "",
       authorEmail: "author@example.com", collectionContract: "0xcol",
     });
     const { uploadJson } = await import("../../assets/src/api.js");
@@ -79,6 +78,11 @@ describe("tokenizePost", () => {
 
     expect(getTokenizeData).toHaveBeenCalledWith([1]);
     expect(uploadJson).toHaveBeenCalledWith(expect.objectContaining({ name: "Fresh title" }));
+  });
+
+  it("throws the server's message for an ineligible post", async () => {
+    await serverPost({ error: "Only published posts without a password can be tokenized." });
+    await expect(tokenizePost(1)).rejects.toThrow("Only published posts without a password can be tokenized.");
   });
 
   it("uploads metadata, mints, and marks the post minted", async () => {

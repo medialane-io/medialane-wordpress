@@ -34,15 +34,19 @@ export async function tokenizeBulk(postIds, onProgress) {
       report(postId, "error", "No data was returned for this post.");
       continue;
     }
+    if (post.error) {
+      failed += 1;
+      report(postId, "error", post.error);
+      continue;
+    }
     report(postId, "preparing");
     try {
       const collectionContract = post.collectionContract || data.collectionContract;
       if (!collectionContract) {
         throw new Error("No collection configured.");
       }
-      const body = data.contentScope === "full" ? post.content : post.excerpt;
       const entry = await prepareMint({
-        postId, title: post.title, body, image: post.image, license: data.licenseDefault, address,
+        postId, title: post.title, body: post.description, image: post.image, license: data.licenseDefault, address,
         collectionContract, authorEmail: post.authorEmail,
         aiPolicy: data.aiPolicyDefault,
       });

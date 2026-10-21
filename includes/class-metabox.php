@@ -32,6 +32,8 @@ class Metabox {
 						data-contract="<?php echo esc_attr( PostMeta::get_contract( $post->ID ) ); ?>"
 						data-license="<?php echo esc_attr( PostMeta::get_license( $post->ID ) ); ?>"
 						data-index="<?php echo esc_attr( PostMeta::get_batch_index( $post->ID ) ); ?>"><?php esc_html_e( 'Check status', 'tokenize-content' ); ?></button>
+				<?php elseif ( ! Eligibility::is_tokenizable( $post ) ) : ?>
+					<p><?php echo esc_html( Eligibility::message() ); ?></p>
 				<?php else : ?>
 					<?php $fetched = Settings::fetch_live_collections_checked(); ?>
 					<?php $collections = is_wp_error( $fetched ) ? array() : $fetched; ?>
@@ -78,7 +80,6 @@ class Metabox {
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
 			'collectionContract' => Settings::get_default_collection(),
-			'contentScope'       => Settings::get_content_scope(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
 			'postId'             => $post ? $post->ID : 0,
 		) );

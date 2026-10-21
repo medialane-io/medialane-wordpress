@@ -67,4 +67,13 @@ class Test_Metabox extends Tokenize_Test_Case {
 		$this->assertStringContainsString( 'Collections could not be loaded right now', $html );
 		remove_all_filters( 'pre_http_request' );
 	}
+
+	public function test_a_draft_shows_a_note_instead_of_the_tokenize_controls() {
+		$draft = $this->factory->post->create( array( 'post_status' => 'draft' ) );
+
+		$html = $this->render_for( $draft );
+
+		$this->assertStringNotContainsString( 'tokenize-content-tokenize-btn', $html );
+		$this->assertStringContainsString( 'Only published posts without a password can be tokenized.', $html );
+	}
 }

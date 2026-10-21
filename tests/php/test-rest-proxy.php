@@ -186,7 +186,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 	public function test_tokenize_data_returns_what_the_client_needs_for_each_requested_post() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 		$author = $this->factory->user->create( array( 'role' => 'author', 'user_email' => 'writer@example.org' ) );
-		$post_id = $this->factory->post->create( array( 'post_author' => $author, 'post_title' => 'Hello', 'post_content' => 'Body text', 'post_excerpt' => 'Short' ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_author' => $author, 'post_title' => 'Hello', 'post_content' => 'Body text', 'post_excerpt' => 'Short' ) );
 
 		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
 		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
@@ -195,8 +195,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( 200, $response->get_status() );
 		$post = $response->get_data()['posts'][ $post_id ];
 		$this->assertSame( 'Hello', $post['title'] );
-		$this->assertSame( 'Body text', $post['content'] );
-		$this->assertSame( 'Short', $post['excerpt'] );
+		$this->assertSame( 'Short', $post['description'] );
 		$this->assertSame( 'writer@example.org', $post['authorEmail'] );
 		$this->assertArrayHasKey( 'collectionContract', $post );
 	}
@@ -324,5 +323,42 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		foreach ( $routes as $route ) {
 			$this->assertStringStartsNotWith( '/tokenize-content/v1/tokens/', $route );
 		}
+	}
+
+	public function test_tokenize_data_returns_a_plain_text_description_per_the_content_scope() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_CONTENT_SCOPE, 'full' );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<!-- wp:paragraph --><p>Body <em>text</em></p><!-- /wp:paragraph -->' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
+
+		$this->assertSame( 'Body text', $post['description'] );
+		$this->assertArrayNotHasKey( 'content', $post );
+		$this->assertArrayNotHasKey( 'excerpt', $post );
+	}
+
+	public function test_tokenize_data_marks_an_ineligible_post_with_an_error_and_no_content() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$draft = $this->factory->post->create( array( 'post_status' => 'draft', 'post_content' => 'Private draft text' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $draft ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $draft ];
+
+		$this->assertArrayHasKey( 'error', $post );
+		$this->assertArrayNotHasKey( 'description', $post );
+		$this->assertStringNotContainsString( 'Private draft text', wp_json_encode( $post ) );
+	}
+
+	public function test_starting_a_mint_on_an_ineligible_post_is_refused() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$draft = $this->factory->post->create( array( 'post_status' => 'draft' ) );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$draft}/minting" ) );
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertSame( 'none', \TokenizeContent\PostMeta::get_status( $draft ) );
 	}
 }

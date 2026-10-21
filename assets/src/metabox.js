@@ -14,12 +14,14 @@ export async function tokenizePost(postId) {
   assertSiteWallet(address, data.walletAddress);
   const { posts } = await getTokenizeData([postId]);
   const post = posts[postId];
-  const body = data.contentScope === "full" ? post.content : post.excerpt;
+  if (post.error) {
+    throw new Error(post.error);
+  }
   const collectionSelect = document.getElementById("tokenize-content-collection");
   const collectionContract = (collectionSelect && collectionSelect.value) || post.collectionContract || data.collectionContract;
 
   const entry = await prepareMint({
-    postId, title: post.title, body, image: post.image, license, address,
+    postId, title: post.title, body: post.description, image: post.image, license, address,
     collectionContract, authorEmail: post.authorEmail,
     aiPolicy: data.aiPolicyDefault,
   });
