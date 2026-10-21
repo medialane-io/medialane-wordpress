@@ -1,6 +1,7 @@
 import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch, markError } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
+import { assertSiteWallet } from "./site-wallet.js";
 
 const MAX_BATCH_SIZE = 25;
 
@@ -17,6 +18,7 @@ function chunk(array, size) {
 export async function tokenizeBulk(postIds, onProgress) {
   const data = window.tokenizeContentData;
   const { address, account } = await connectWallet();
+  assertSiteWallet(address, data.walletAddress);
   const { posts } = await getTokenizeData(postIds);
   const report = (postId, status, message) => onProgress && onProgress(postId, status, message);
   let failed = 0;

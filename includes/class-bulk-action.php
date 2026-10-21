@@ -61,6 +61,7 @@ class BulkAction {
 		wp_localize_script( 'tokenize-content-bulk-action', 'tokenizeContentData', array(
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
+			'walletAddress'      => Settings::get_wallet_address(),
 			'collectionContract' => Settings::get_collection_contract(),
 			'contentScope'       => Settings::get_content_scope(),
 			'licenseDefault'     => Settings::get_license_default(),

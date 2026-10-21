@@ -41,6 +41,7 @@ class Settings {
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'siteName'           => get_bloginfo( 'name' ),
 			'collectionContract' => self::get_collection_contract(),
+			'walletAddress'      => self::get_wallet_address(),
 		) );
 	}
 
@@ -71,6 +72,15 @@ class Settings {
 	public static function sanitize_api_key( $value ): string {
 		$value = trim( sanitize_text_field( (string) $value ) );
 		return '' === $value ? (string) get_option( self::OPTION_API_KEY, '' ) : $value;
+	}
+
+	public static function canonical_address( string $address ): string {
+		$address = strtolower( trim( $address ) );
+		if ( 0 !== strpos( $address, '0x' ) ) {
+			return $address;
+		}
+		$digits = ltrim( substr( $address, 2 ), '0' );
+		return '0x' . ( '' === $digits ? '0' : $digits );
 	}
 
 	public static function sanitize_address( $value ): string {
@@ -156,7 +166,10 @@ class Settings {
 		$body  = json_decode( wp_remote_retrieve_body( $response ), true );
 		$items = ( is_array( $body ) && isset( $body['data'] ) && is_array( $body['data'] ) ) ? $body['data'] : array();
 
-		$labels      = self::get_collection_labels();
+		$labels = array();
+		foreach ( self::get_collection_labels() as $stored => $label ) {
+			$labels[ self::canonical_address( (string) $stored ) ] = $label;
+		}
 		$collections = array();
 		foreach ( $items as $item ) {
 			if ( empty( $item['contractAddress'] ) ) {
@@ -165,7 +178,7 @@ class Settings {
 			$contract      = (string) $item['contractAddress'];
 			$collections[] = array(
 				'contract' => $contract,
-				'label'    => isset( $labels[ $contract ] ) ? $labels[ $contract ] : $contract,
+				'label'    => isset( $labels[ self::canonical_address( $contract ) ] ) ? $labels[ self::canonical_address( $contract ) ] : $contract,
 			);
 		}
 		return $collections;
@@ -192,23 +205,30 @@ class Settings {
 	// list (deleted, renamed, never real) is never trusted.
 	public static function resolve_collection_for_post( int $post_id, array $live_collections ): string {
 		$valid = wp_list_pluck( $live_collections, 'contract' );
+		$find  = function ( string $wanted ) use ( $valid ): string {
+			foreach ( $valid as $contract ) {
+				if ( '' !== $wanted && self::canonical_address( (string) $contract ) === self::canonical_address( $wanted ) ) {
+					return (string) $contract;
+				}
+			}
+			return '';
+		};
 
 		$map = self::get_category_map();
 		if ( $map ) {
-			$categories = get_the_category( $post_id );
-			foreach ( $categories as $category ) {
-				if ( isset( $map[ $category->term_id ] ) && in_array( $map[ $category->term_id ], $valid, true ) ) {
-					return $map[ $category->term_id ];
+			foreach ( get_the_category( $post_id ) as $category ) {
+				if ( isset( $map[ $category->term_id ] ) && '' !== $find( $map[ $category->term_id ] ) ) {
+					return $find( $map[ $category->term_id ] );
 				}
 			}
 		}
 
-		$default = self::get_default_collection();
-		if ( in_array( $default, $valid, true ) ) {
+		$default = $find( self::get_default_collection() );
+		if ( '' !== $default ) {
 			return $default;
 		}
 
-		return $valid ? $valid[0] : '';
+		return $valid ? (string) $valid[0] : '';
 	}
 
 	public static function get_content_scope(): string {

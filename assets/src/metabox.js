@@ -1,6 +1,7 @@
 import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch, resumeMint } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
+import { assertSiteWallet } from "./site-wallet.js";
 
 export async function tokenizePost(postId) {
   const data = window.tokenizeContentData;
@@ -10,6 +11,7 @@ export async function tokenizePost(postId) {
   const license = licenseSelect.value === "Custom" ? licenseCustom.value : licenseSelect.value;
 
   const { address, account } = await connectWallet();
+  assertSiteWallet(address, data.walletAddress);
   const { posts } = await getTokenizeData([postId]);
   const post = posts[postId];
   const body = data.contentScope === "full" ? post.content : post.excerpt;

@@ -43,6 +43,15 @@ describe("tokenizeBulk", () => {
     });
   });
 
+  it("refuses to start when the connected wallet is not the site's saved wallet", async () => {
+    global.window.tokenizeContentData.walletAddress = "0xdef";
+    const getTokenizeData = await serverPosts({});
+    getTokenizeData.mockClear();
+
+    await expect(tokenizeBulk(["1"], () => {})).rejects.toThrow("not the wallet saved for this site");
+    expect(getTokenizeData).not.toHaveBeenCalled();
+  });
+
   it("fetches the selected posts' data from the server once, by id", async () => {
     const getTokenizeData = await serverPosts({
       1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },

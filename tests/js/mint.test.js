@@ -58,6 +58,15 @@ describe("tokenizePost", () => {
     await expect(tokenizePost(1)).rejects.toThrow("No collection configured");
   });
 
+  it("refuses to tokenize when the connected wallet is not the site's saved wallet", async () => {
+    global.window.tokenizeContentData.walletAddress = "0xdef";
+    const getTokenizeData = await serverPost({ title: "t", excerpt: "e", content: "c", image: "", authorEmail: "a@example.com", collectionContract: "0xcol" });
+    getTokenizeData.mockClear();
+
+    await expect(tokenizePost(1)).rejects.toThrow("not the wallet saved for this site");
+    expect(getTokenizeData).not.toHaveBeenCalled();
+  });
+
   it("reads the post's data from the server at click time, not from the page", async () => {
     const getTokenizeData = await serverPost({
       title: "Fresh title", excerpt: "e", content: "c", image: "",

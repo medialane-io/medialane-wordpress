@@ -242,4 +242,35 @@ class Test_Settings extends WP_UnitTestCase {
 
 		$this->assertSame( '', Settings::resolve_collection_for_post( $post_id, array() ) );
 	}
+
+	public function test_resolve_collection_matches_a_live_contract_that_differs_only_by_case_or_leading_zeros() {
+		delete_option( Settings::OPTION_COLLECTION );
+		$live = array( array( 'contract' => '0xdefa01', 'label' => 'Default' ), array( 'contract' => '0x000BBB22', 'label' => 'News' ) );
+		$cat  = $this->factory->category->create();
+		$post = $this->factory->post->create( array( 'post_category' => array( $cat ) ) );
+		Settings::save_category_map( array( $cat => '0xbbb22' ) );
+
+		$this->assertSame( '0x000BBB22', Settings::resolve_collection_for_post( $post, $live ) );
+	}
+
+	public function test_resolve_collection_matches_the_stored_default_across_address_formats() {
+		delete_option( Settings::OPTION_CATEGORY_MAP );
+		Settings::set_default_collection( '0xdefa01' );
+		$live = array( array( 'contract' => '0xaaa11', 'label' => 'First' ), array( 'contract' => '0x0000DEFA01', 'label' => 'Default' ) );
+
+		$this->assertSame( '0x0000DEFA01', Settings::resolve_collection_for_post( $this->factory->post->create(), $live ) );
+	}
+
+	public function test_fetch_live_collections_finds_the_label_across_address_formats() {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		delete_option( Settings::OPTION_COLLECTION_LABELS );
+		Settings::save_collection_label( '0xaaa', 'General' );
+
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0x000AAA' ) ) ) ) );
+		} );
+
+		$this->assertSame( array( array( 'contract' => '0x000AAA', 'label' => 'General' ) ), Settings::fetch_live_collections() );
+	}
 }

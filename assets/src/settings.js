@@ -1,4 +1,5 @@
 import { connectWallet, executeCalls } from "./wallet.js";
+import { assertSiteWallet } from "./site-wallet.js";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
   saveCollectionEntry, saveCategoryMap, saveWalletAddress,
@@ -77,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
       createCollectionBtn.textContent = "Creating…";
       try {
         const { address, account } = await connectWallet();
+        assertSiteWallet(address, window.tokenizeContentData.walletAddress);
         await createAndRegisterCollection(address, account, label);
         location.reload();
       } catch (err) {
