@@ -1,5 +1,5 @@
 import { connectWallet } from "./wallet.js";
-import { prepareMint, executeMintBatch } from "./mint-flow.js";
+import { prepareMint, executeMintBatch, markError } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
 
 const MAX_BATCH_SIZE = 25;
@@ -18,36 +18,57 @@ export async function tokenizeBulk(postIds, onProgress) {
   const data = window.tokenizeContentData;
   const { address, account } = await connectWallet();
   const { posts } = await getTokenizeData(postIds);
+  const report = (postId, status, message) => onProgress && onProgress(postId, status, message);
+  let failed = 0;
+  let minted = 0;
+
+  const fail = async (postId, message) => {
+    failed += 1;
+    report(postId, "error", message);
+    await markError(data.restUrl, data.nonce, postId, message);
+  };
 
   const entriesByCollection = new Map();
   for (const postId of postIds) {
     const post = posts[postId];
-    if (!post) continue;
-    const collectionContract = post.collectionContract || data.collectionContract;
-    if (!collectionContract) {
-      throw new Error("No collection configured.");
+    if (!post) {
+      failed += 1;
+      report(postId, "error", "No data was returned for this post.");
+      continue;
     }
-    onProgress && onProgress(postId, "preparing");
-    const body = data.contentScope === "full" ? post.content : post.excerpt;
-    const entry = await prepareMint({
-      postId, title: post.title, body, image: post.image, license: data.licenseDefault, address,
-      collectionContract, authorEmail: post.authorEmail,
-      aiPolicy: data.aiPolicyDefault,
-    });
-    if (!entriesByCollection.has(collectionContract)) entriesByCollection.set(collectionContract, []);
-    entriesByCollection.get(collectionContract).push(entry);
+    report(postId, "preparing");
+    try {
+      const collectionContract = post.collectionContract || data.collectionContract;
+      if (!collectionContract) {
+        throw new Error("No collection configured.");
+      }
+      const body = data.contentScope === "full" ? post.content : post.excerpt;
+      const entry = await prepareMint({
+        postId, title: post.title, body, image: post.image, license: data.licenseDefault, address,
+        collectionContract, authorEmail: post.authorEmail,
+        aiPolicy: data.aiPolicyDefault,
+      });
+      if (!entriesByCollection.has(collectionContract)) entriesByCollection.set(collectionContract, []);
+      entriesByCollection.get(collectionContract).push(entry);
+    } catch (err) {
+      await fail(postId, err.message || "Something went wrong");
+    }
   }
 
   for (const [collectionContract, entries] of entriesByCollection) {
     for (const group of chunk(entries, MAX_BATCH_SIZE)) {
-      group.forEach((e) => onProgress && onProgress(e.postId, "minting"));
+      group.forEach((e) => report(e.postId, "minting"));
       const results = await executeMintBatch({
         restUrl: data.restUrl, nonce: data.nonce, account, address,
         collectionContract, entries: group,
       });
-      results.forEach((r) => onProgress && onProgress(r.postId, r.error ? "error" : "minted", r.error));
+      results.forEach((r) => {
+        if (r.error) failed += 1; else minted += 1;
+        report(r.postId, r.error ? "error" : "minted", r.error);
+      });
     }
   }
+  return { minted, failed };
 }
 
 const STATUS_LABEL = {
@@ -80,6 +101,11 @@ export function buildStatusPanel(postIds, titles) {
 
   return {
     element: panel,
+    finish(text) {
+      const line = document.createElement("p");
+      line.textContent = text;
+      panel.appendChild(line);
+    },
     update(postId, status, message) {
       const row = rows[postId];
       if (!row) return;
@@ -114,5 +140,13 @@ document.addEventListener("submit", (e) => {
     heading.parentNode.insertBefore(status.element, heading.nextSibling);
   }
 
-  tokenizeBulk(ids, (id, s, message) => status.update(id, s, message)).then(() => location.reload());
+  tokenizeBulk(ids, (id, s, message) => status.update(id, s, message))
+    .then(({ minted, failed }) => {
+      if (failed === 0) {
+        location.reload();
+        return;
+      }
+      status.finish(`${minted} minted, ${failed} failed.`);
+    })
+    .catch((err) => status.finish(err.message || "Something went wrong"));
 });

@@ -95,12 +95,48 @@ describe("tokenizeBulk", () => {
     expect(createMintIntent).toHaveBeenCalledWith(expect.objectContaining({ collectionId: "0xsports" }));
   });
 
-  it("throws when a post has no resolvable collection at all", async () => {
+  it("marks a post errored, and mints nothing for it, when it has no resolvable collection", async () => {
     global.window.tokenizeContentData.collectionContract = "";
     await serverPosts({
       1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com", collectionContract: "" },
     });
-    await expect(tokenizeBulk(["1"], () => {})).rejects.toThrow("No collection configured");
+    const { executeSponsoredInvoke } = await import("../../assets/src/api.js");
+    executeSponsoredInvoke.mockClear();
+    const progress = [];
+
+    const result = await tokenizeBulk(["1"], (id, status, message) => progress.push(`${id}:${status}:${message || ""}`));
+
+    expect(progress).toContain("1:error:No collection configured.");
+    expect(executeSponsoredInvoke).not.toHaveBeenCalled();
+    expect(result).toEqual({ minted: 0, failed: 1 });
+  });
+
+  it("keeps going when one post fails to prepare, marking only that post errored", async () => {
+    await serverPosts({
+      1: { title: "A", excerpt: "a", content: "aa", image: "", authorEmail: "a@example.com" },
+      2: { title: "B", excerpt: "b", content: "bb", image: "", authorEmail: "" },
+      3: { title: "C", excerpt: "c", content: "cc", image: "", authorEmail: "c@example.com" },
+    });
+    const { executeSponsoredInvoke } = await import("../../assets/src/api.js");
+    executeSponsoredInvoke.mockClear();
+    const progress = [];
+
+    const result = await tokenizeBulk(["1", "2", "3"], (id, status) => progress.push(`${id}:${status}`));
+
+    expect(progress).toEqual(expect.arrayContaining(["1:minted", "2:error", "3:minted"]));
+    expect(executeSponsoredInvoke).toHaveBeenCalledTimes(1);
+    const paths = global.fetch.mock.calls.map((call) => call[0]);
+    expect(paths).toContain("/wp-json/tokenize-content/v1/posts/2/error");
+    expect(result).toEqual({ minted: 2, failed: 1 });
+  });
+
+  it("reports a selected post the server did not return instead of skipping it silently", async () => {
+    const progress = [];
+
+    const result = await tokenizeBulk(["1", "9"], (id, status, message) => progress.push(`${id}:${status}:${message || ""}`));
+
+    expect(progress).toContain("9:error:No data was returned for this post.");
+    expect(result).toEqual({ minted: 1, failed: 1 });
   });
 
   it("splits more than 25 posts into multiple batches", async () => {
@@ -131,5 +167,13 @@ describe("buildStatusPanel", () => {
 
     panel.update("2", "error", "Something went wrong");
     expect(rows[1].textContent).toBe("B — Failed: Something went wrong");
+  });
+
+  it("shows a closing summary line", () => {
+    const panel = buildStatusPanel(["1"], { 1: "A" });
+
+    panel.finish("1 minted, 0 failed.");
+
+    expect(panel.element.textContent).toContain("1 minted, 0 failed.");
   });
 });

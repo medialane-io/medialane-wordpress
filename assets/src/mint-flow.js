@@ -28,7 +28,7 @@ function markMinted(restUrl, nonce, postId, data) {
   return postJson(restUrl, nonce, `/posts/${postId}/minted`, data);
 }
 
-function markError(restUrl, nonce, postId, message) {
+export function markError(restUrl, nonce, postId, message) {
   return postJson(restUrl, nonce, `/posts/${postId}/error`, { message });
 }
 
