@@ -2,7 +2,7 @@
 
 use TokenizeContent\PostMeta;
 
-class Test_Post_Meta extends WP_UnitTestCase {
+class Test_Post_Meta extends Tokenize_Test_Case {
 
 	public function test_default_status_is_none() {
 		$post_id = $this->factory->post->create();

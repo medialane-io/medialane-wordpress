@@ -2,7 +2,7 @@
 
 use TokenizeContent\Settings;
 
-class Test_Settings extends WP_UnitTestCase {
+class Test_Settings extends Tokenize_Test_Case {
 
 	public function tear_down() {
 		delete_option( Settings::OPTION_API_KEY );

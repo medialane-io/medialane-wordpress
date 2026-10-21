@@ -3,7 +3,7 @@
 use TokenizeContent\AssetBadge;
 use TokenizeContent\PostMeta;
 
-class Test_Asset_Badge extends WP_UnitTestCase {
+class Test_Asset_Badge extends Tokenize_Test_Case {
 
 	public function test_renders_nothing_for_a_post_that_was_never_minted() {
 		$post_id = $this->factory->post->create();

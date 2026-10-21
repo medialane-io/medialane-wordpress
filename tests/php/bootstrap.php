@@ -11,3 +11,14 @@ function _tokenize_content_manually_load_plugin() {
 tests_add_filter( 'muplugins_loaded', '_tokenize_content_manually_load_plugin' );
 
 require $_tests_dir . '/includes/bootstrap.php';
+
+class Tokenize_Test_Case extends WP_UnitTestCase {
+
+	public function tear_down() {
+		foreach ( wp_roles()->role_objects as $role ) {
+			$role->remove_cap( \TokenizeContent\Settings::CAP_TOKENIZE );
+		}
+		\TokenizeContent\Settings::grant_default_capability();
+		parent::tear_down();
+	}
+}

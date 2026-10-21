@@ -3,7 +3,7 @@
 use TokenizeContent\Metabox;
 use TokenizeContent\PostMeta;
 
-class Test_Metabox extends WP_UnitTestCase {
+class Test_Metabox extends Tokenize_Test_Case {
 
 	public function tear_down() {
 		wp_dequeue_script( 'tokenize-content-metabox' );

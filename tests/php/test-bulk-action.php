@@ -4,7 +4,7 @@ use TokenizeContent\BulkAction;
 use TokenizeContent\PostMeta;
 use TokenizeContent\Settings;
 
-class Test_Bulk_Action extends WP_UnitTestCase {
+class Test_Bulk_Action extends Tokenize_Test_Case {
 
 	public function set_up() {
 		parent::set_up();

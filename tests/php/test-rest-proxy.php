@@ -2,7 +2,7 @@
 
 use TokenizeContent\Settings;
 
-class Test_Rest_Proxy extends WP_UnitTestCase {
+class Test_Rest_Proxy extends Tokenize_Test_Case {
 
 	protected $server;
 
