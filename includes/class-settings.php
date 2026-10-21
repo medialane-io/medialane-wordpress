@@ -16,6 +16,8 @@ class Settings {
 	const OPTION_AI_POLICY_DEFAULT = 'tokenize_content_ai_policy_default';
 	const OPTION_CONTENT_SCOPE   = 'tokenize_content_content_scope'; // 'excerpt' | 'full'
 	const CAP_TOKENIZE = 'tokenize_content_tokenize_posts';
+	const GROUP_KEY      = 'tokenize-content-key';
+	const GROUP_DEFAULTS = 'tokenize-content-defaults';
 
 	const LICENSE_PRESETS = array(
 		'CC BY-SA', 'CC BY', 'CC BY-NC', 'CC BY-ND', 'CC BY-NC-SA', 'CC BY-NC-ND',
@@ -53,10 +55,10 @@ class Settings {
 	}
 
 	public static function register_settings() {
-		register_setting( 'tokenize-content', self::OPTION_API_KEY, array( 'sanitize_callback' => 'sanitize_text_field' ) );
-		register_setting( 'tokenize-content', self::OPTION_LICENSE_DEFAULT, array( 'sanitize_callback' => 'sanitize_text_field' ) );
-		register_setting( 'tokenize-content', self::OPTION_AI_POLICY_DEFAULT, array( 'sanitize_callback' => 'sanitize_text_field' ) );
-		register_setting( 'tokenize-content', self::OPTION_CONTENT_SCOPE, array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( self::GROUP_KEY, self::OPTION_API_KEY, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_api_key' ) ) );
+		register_setting( self::GROUP_DEFAULTS, self::OPTION_LICENSE_DEFAULT, array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( self::GROUP_DEFAULTS, self::OPTION_AI_POLICY_DEFAULT, array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( self::GROUP_DEFAULTS, self::OPTION_CONTENT_SCOPE, array( 'sanitize_callback' => 'sanitize_text_field' ) );
 	}
 
 	public static function grant_default_capability() {
@@ -64,6 +66,11 @@ class Settings {
 		if ( $role && ! $role->has_cap( self::CAP_TOKENIZE ) ) {
 			$role->add_cap( self::CAP_TOKENIZE );
 		}
+	}
+
+	public static function sanitize_api_key( $value ): string {
+		$value = trim( sanitize_text_field( (string) $value ) );
+		return '' === $value ? (string) get_option( self::OPTION_API_KEY, '' ) : $value;
 	}
 
 	public static function sanitize_address( $value ): string {
@@ -259,18 +266,19 @@ class Settings {
 				?>
 			</p>
 			<?php if ( defined( 'TOKENIZE_CONTENT_API_KEY' ) && TOKENIZE_CONTENT_API_KEY ) : ?>
-				<p><em><?php esc_html_e( 'Set from wp-config.php — the field below is ignored while the TOKENIZE_CONTENT_API_KEY constant is defined.', 'tokenize-content' ); ?></em></p>
+				<p><em><?php esc_html_e( 'The API key is set in wp-config.php.', 'tokenize-content' ); ?></em></p>
+			<?php else : ?>
+				<form method="post" action="options.php">
+					<?php settings_fields( self::GROUP_KEY ); ?>
+					<table class="form-table">
+						<tr>
+							<th><label for="tokenize_content_api_key"><?php esc_html_e( 'API Key', 'tokenize-content' ); ?></label></th>
+							<td><input type="password" id="tokenize_content_api_key" name="<?php echo esc_attr( self::OPTION_API_KEY ); ?>" value="" placeholder="<?php echo esc_attr( $api_key_set ? __( 'A key is saved. Enter a new key to replace it.', 'tokenize-content' ) : '' ); ?>" class="regular-text" autocomplete="off" /></td>
+						</tr>
+					</table>
+					<?php submit_button( __( 'Save API Key', 'tokenize-content' ) ); ?>
+				</form>
 			<?php endif; ?>
-			<form method="post" action="options.php">
-				<?php settings_fields( 'tokenize-content' ); ?>
-				<table class="form-table">
-					<tr>
-						<th><label for="tokenize_content_api_key"><?php esc_html_e( 'API Key', 'tokenize-content' ); ?></label></th>
-						<td><input type="password" id="tokenize_content_api_key" name="<?php echo esc_attr( self::OPTION_API_KEY ); ?>" value="<?php echo esc_attr( self::get_api_key() ); ?>" class="regular-text" autocomplete="off" /></td>
-					</tr>
-				</table>
-				<?php submit_button( __( 'Save API Key', 'tokenize-content' ) ); ?>
-			</form>
 
 			<?php if ( ! $api_key_set ) : ?>
 				<p class="description"><?php esc_html_e( 'Add your API key and save it to continue setup.', 'tokenize-content' ); ?></p>
@@ -300,7 +308,7 @@ class Settings {
 
 			<h2><?php esc_html_e( 'Tokenization defaults', 'tokenize-content' ); ?></h2>
 			<form method="post" action="options.php">
-				<?php settings_fields( 'tokenize-content' ); ?>
+				<?php settings_fields( self::GROUP_DEFAULTS ); ?>
 				<table class="form-table">
 					<tr>
 						<th><label for="tokenize_content_content_scope"><?php esc_html_e( 'Post content to tokenize', 'tokenize-content' ); ?></label></th>

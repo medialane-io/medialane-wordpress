@@ -43,6 +43,73 @@ class Test_Settings extends WP_UnitTestCase {
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Settings::CAP_TOKENIZE ) );
 	}
 
+	public function test_key_and_defaults_are_in_different_option_groups() {
+		Settings::register_settings();
+		$groups = array();
+		foreach ( get_registered_settings() as $name => $config ) {
+			if ( 0 === strpos( $name, 'tokenize_content_' ) ) {
+				$groups[ $name ] = $config['group'];
+			}
+		}
+
+		$this->assertNotSame( $groups[ Settings::OPTION_API_KEY ], $groups[ Settings::OPTION_LICENSE_DEFAULT ] );
+		$this->assertSame( $groups[ Settings::OPTION_LICENSE_DEFAULT ], $groups[ Settings::OPTION_AI_POLICY_DEFAULT ] );
+		$this->assertSame( $groups[ Settings::OPTION_LICENSE_DEFAULT ], $groups[ Settings::OPTION_CONTENT_SCOPE ] );
+	}
+
+	public function test_each_settings_form_posts_to_its_own_option_group() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+
+		ob_start();
+		Settings::render_settings_page();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( "name='option_page' value='tokenize-content-key'", $html );
+		$this->assertStringContainsString( "name='option_page' value='tokenize-content-defaults'", $html );
+	}
+
+	public function test_settings_page_html_never_contains_the_saved_key() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'SECRET-OPTION-KEY' );
+
+		ob_start();
+		Settings::render_settings_page();
+		$html = ob_get_clean();
+
+		$this->assertStringNotContainsString( 'SECRET-OPTION-KEY', $html );
+	}
+
+	public function test_a_blank_api_key_submission_keeps_the_saved_key() {
+		update_option( Settings::OPTION_API_KEY, 'keep-me' );
+
+		$this->assertSame( 'keep-me', Settings::sanitize_api_key( '' ) );
+		$this->assertSame( 'keep-me', Settings::sanitize_api_key( null ) );
+	}
+
+	public function test_a_new_api_key_submission_replaces_the_saved_key() {
+		update_option( Settings::OPTION_API_KEY, 'old-key' );
+
+		$this->assertSame( 'new-key', Settings::sanitize_api_key( ' new-key ' ) );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_settings_page_shows_no_key_field_and_no_key_when_the_constant_is_defined() {
+		define( 'TOKENIZE_CONTENT_API_KEY', 'SECRET-CONSTANT-KEY' );
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+
+		ob_start();
+		Settings::render_settings_page();
+		$html = ob_get_clean();
+
+		$this->assertStringNotContainsString( 'SECRET-CONSTANT-KEY', $html );
+		$this->assertStringNotContainsString( 'name="' . Settings::OPTION_API_KEY . '"', $html );
+	}
+
 	public function test_get_license_default_falls_back_to_all_rights_reserved() {
 		delete_option( Settings::OPTION_LICENSE_DEFAULT );
 		$this->assertSame( 'All Rights Reserved', Settings::get_license_default() );
