@@ -43,6 +43,25 @@ class Settings {
 		return array_filter( self::LICENSES );
 	}
 
+	public static function uninstall() {
+		global $wpdb;
+		foreach ( ( new \ReflectionClass( __CLASS__ ) )->getConstants() as $name => $option ) {
+			if ( 0 === strpos( $name, 'OPTION_' ) ) {
+				delete_option( $option );
+			}
+		}
+		foreach ( wp_roles()->role_objects as $role ) {
+			$role->remove_cap( self::CAP_TOKENIZE );
+		}
+		$cached = $wpdb->get_col( $wpdb->prepare(
+			"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+			$wpdb->esc_like( '_transient_tokenize_content_collections_' ) . '%'
+		) );
+		foreach ( $cached as $name ) {
+			delete_transient( substr( $name, strlen( '_transient_' ) ) );
+		}
+	}
+
 	public static function register() {
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 	}
