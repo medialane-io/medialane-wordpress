@@ -258,4 +258,52 @@ class Test_Rest_Proxy extends WP_UnitTestCase {
 		$this->assertSame( '0xabc', \TokenizeContent\PostMeta::get_tx_hash( $post_id ) );
 		$this->assertSame( '3', \TokenizeContent\PostMeta::get_batch_index( $post_id ) );
 	}
+
+	public function minted_payloads_with_a_malformed_value() {
+		$good = array( 'tokenId' => '42', 'txHash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' );
+		return array(
+			'contract'  => array( array_merge( $good, array( 'contract' => 'javascript:alert(1)' ) ) ),
+			'token id'  => array( array_merge( $good, array( 'tokenId' => 'abc' ) ) ),
+			'tx hash'   => array( array_merge( $good, array( 'txHash' => 'not-a-hash' ) ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider minted_payloads_with_a_malformed_value
+	 */
+	public function test_minted_route_rejects_a_malformed_reference_and_leaves_the_post_alone( array $payload ) {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create();
+		\TokenizeContent\PostMeta::set_minting( $post_id );
+
+		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/minted" );
+		$request->set_body_params( $payload );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+	}
+
+	public function test_minted_route_accepts_a_well_formed_reference() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create();
+
+		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/minted" );
+		$request->set_body_params( array( 'tokenId' => '42', 'txHash' => '0xabc123', 'contract' => '0xdef456', 'license' => 'CC BY' ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'minted', $response->get_data()['status'] );
+	}
+
+	public function test_broadcast_route_rejects_a_malformed_transaction_hash() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create();
+
+		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/broadcast" );
+		$request->set_body_params( array( 'txHash' => '<b>x</b>', 'contract' => '0xdef', 'license' => 'CC BY', 'index' => 0 ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 400, $response->get_status() );
+	}
 }

@@ -85,4 +85,14 @@ class Test_Post_Meta extends WP_UnitTestCase {
 		$this->assertSame( '', PostMeta::get_tx_hash( $post_id ) );
 		$this->assertSame( '', PostMeta::get_batch_index( $post_id ) );
 	}
+
+	public function test_an_author_cannot_write_the_plugin_s_meta_through_the_meta_capability() {
+		$author_id = $this->factory->user->create( array( 'role' => 'author' ) );
+		wp_set_current_user( $author_id );
+		$post_id = $this->factory->post->create( array( 'post_author' => $author_id ) );
+
+		foreach ( array( PostMeta::KEY_STATUS, PostMeta::KEY_TOKEN_ID, PostMeta::KEY_TX_HASH, PostMeta::KEY_CONTRACT, PostMeta::KEY_LICENSE, PostMeta::KEY_ERROR, PostMeta::KEY_BATCH_INDEX ) as $key ) {
+			$this->assertFalse( current_user_can( 'edit_post_meta', $post_id, $key ), $key );
+		}
+	}
 }

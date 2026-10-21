@@ -163,7 +163,25 @@ class RestProxy {
 		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
 	}
 
+	private static function malformed_reference( \WP_REST_Request $request, array $fields ) {
+		$patterns = array(
+			'txHash'   => '/^0x[0-9a-fA-F]+$/',
+			'contract' => '/^0x[0-9a-fA-F]+$/',
+			'tokenId'  => '/^\d*$/',
+		);
+		foreach ( $fields as $field ) {
+			if ( ! preg_match( $patterns[ $field ], (string) $request->get_param( $field ) ) ) {
+				return new \WP_Error( 'tokenize_content_invalid_reference', __( 'The transaction reference is malformed.', 'tokenize-content' ), array( 'status' => 400 ) );
+			}
+		}
+		return null;
+	}
+
 	public static function save_broadcast( \WP_REST_Request $request ) {
+		$invalid = self::malformed_reference( $request, array( 'txHash', 'contract' ) );
+		if ( $invalid ) {
+			return $invalid;
+		}
 		$post_id = (int) $request->get_param( 'id' );
 		PostMeta::set_broadcast( $post_id, array(
 			'tx_hash'     => (string) $request->get_param( 'txHash' ),
@@ -175,6 +193,10 @@ class RestProxy {
 	}
 
 	public static function save_minted( \WP_REST_Request $request ) {
+		$invalid = self::malformed_reference( $request, array( 'txHash', 'contract', 'tokenId' ) );
+		if ( $invalid ) {
+			return $invalid;
+		}
 		$post_id = (int) $request->get_param( 'id' );
 		PostMeta::save_minted( $post_id, array(
 			'token_id' => (string) $request->get_param( 'tokenId' ),

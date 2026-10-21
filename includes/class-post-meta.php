@@ -25,9 +25,6 @@ class PostMeta {
 			'show_in_rest' => false,
 			'single'       => true,
 			'type'         => 'string',
-			'auth_callback' => function () {
-				return current_user_can( 'edit_posts' );
-			},
 		);
 		register_post_meta( 'post', self::KEY_STATUS, $string_field );
 		register_post_meta( 'post', self::KEY_TOKEN_ID, $string_field );
