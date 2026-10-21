@@ -137,6 +137,10 @@ class RestProxy {
 			$posts[ $id ] = array(
 				'title'              => get_the_title( $post ),
 				'description'        => Description::plain_text( $post, $scope ),
+				'content'            => Description::markdown( $post ),
+				'author'             => get_the_author_meta( 'display_name', $post->post_author ),
+				'publisher'          => get_bloginfo( 'name' ),
+				'url'                => get_permalink( $post ),
 				'hasImage'           => (bool) has_post_thumbnail( $post ),
 				'authorEmail'        => get_the_author_meta( 'user_email', $post->post_author ),
 				'collectionContract' => $collection ? $collection['contract'] : '',

@@ -50,7 +50,8 @@ export async function tokenizeBulk(postIds, onProgress) {
         throw new Error(__("No collection configured.", "tokenize-content"));
       }
       const entry = await prepareMint({
-        postId, title: post.title, body: post.description, hasImage: post.hasImage,
+        postId, title: post.title, body: post.description, content: post.content, author: post.author, publisher: post.publisher, url: post.url,
+        hasImage: post.hasImage,
         license: data.licenseDefault, licenses: data.licenses, aiPolicy: data.aiPolicyDefault,
         address, collectionId: post.collectionId, authorEmail: post.authorEmail,
       });

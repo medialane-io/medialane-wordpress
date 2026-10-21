@@ -320,8 +320,38 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
 
 		$this->assertSame( 'Body text', $post['description'] );
-		$this->assertArrayNotHasKey( 'content', $post );
 		$this->assertArrayNotHasKey( 'excerpt', $post );
+	}
+
+	public function test_tokenize_data_returns_the_full_post_as_markdown_whatever_the_content_scope() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_CONTENT_SCOPE, 'excerpt' );
+		$post_id = $this->factory->post->create( array(
+			'post_status'  => 'publish',
+			'post_excerpt' => 'Short',
+			'post_content' => '<!-- wp:heading --><h2>Title</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Body <em>text</em></p><!-- /wp:paragraph -->',
+		) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
+
+		$this->assertSame( 'Short', $post['description'] );
+		$this->assertSame( "## Title\n\nBody *text*", $post['content'] );
+	}
+
+	public function test_tokenize_data_returns_the_byline_the_site_name_and_the_post_address() {
+		$author_id = $this->factory->user->create( array( 'role' => 'author', 'display_name' => 'Ana Autora' ) );
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_author' => $author_id, 'post_content' => 'Body' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
+
+		$this->assertSame( 'Ana Autora', $post['author'] );
+		$this->assertSame( get_bloginfo( 'name' ), $post['publisher'] );
+		$this->assertSame( get_permalink( $post_id ), $post['url'] );
 	}
 
 	public function test_tokenize_data_marks_an_ineligible_post_with_an_error_and_no_content() {
@@ -334,6 +364,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 
 		$this->assertArrayHasKey( 'error', $post );
 		$this->assertArrayNotHasKey( 'description', $post );
+		$this->assertArrayNotHasKey( 'content', $post );
 		$this->assertStringNotContainsString( 'Private draft text', wp_json_encode( $post ) );
 	}
 

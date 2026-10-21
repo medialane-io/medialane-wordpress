@@ -27,7 +27,8 @@ export async function tokenizePost(postId) {
   }
 
   const entry = await prepareMint({
-    postId, title: post.title, body: post.description, hasImage: post.hasImage, license, licenses: data.licenses,
+    postId, title: post.title, body: post.description, content: post.content, author: post.author, publisher: post.publisher, url: post.url,
+    hasImage: post.hasImage, license, licenses: data.licenses,
     aiPolicy: data.aiPolicyDefault, address, collectionId, authorEmail: post.authorEmail,
   });
   const [result] = await executeMintBatch({ account, address, collectionContract, entries: [entry] });

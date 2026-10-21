@@ -14,3 +14,11 @@ export function buildLicenseAttributes(preset, aiPolicy, licenses, territory = "
   }
   return attributes;
 }
+
+export function buildPublicationAttributes({ author, publisher, url }) {
+  const attributes = [{ trait_type: "IP Type", value: "Publications" }];
+  if (author) attributes.push({ trait_type: "Author", value: author });
+  if (publisher) attributes.push({ trait_type: "Publisher", value: publisher });
+  if (url) attributes.push({ trait_type: "Website", value: url });
+  return attributes;
+}
