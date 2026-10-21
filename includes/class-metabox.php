@@ -35,7 +35,7 @@ class Metabox {
 				<?php elseif ( ! Eligibility::is_tokenizable( $post ) ) : ?>
 					<p><?php echo esc_html( Eligibility::message() ); ?></p>
 				<?php else : ?>
-					<?php $fetched = Settings::fetch_live_collections_checked(); ?>
+					<?php $fetched = Settings::fetch_live_collections(); ?>
 					<?php $collections = is_wp_error( $fetched ) ? array() : $fetched; ?>
 					<?php if ( is_wp_error( $fetched ) ) : ?>
 						<p class="description"><?php esc_html_e( 'Collections could not be loaded right now. Reload to try again.', 'tokenize-content' ); ?></p>
@@ -44,8 +44,9 @@ class Metabox {
 						<p>
 							<label for="tokenize-content-collection"><?php esc_html_e( 'Collection', 'tokenize-content' ); ?></label>
 							<select id="tokenize-content-collection">
+								<?php $resolved = Settings::resolve_collection_for_post( $post->ID, $collections ); ?>
 								<?php foreach ( $collections as $collection ) : ?>
-									<option value="<?php echo esc_attr( $collection['contract'] ); ?>" <?php selected( Settings::resolve_collection_for_post( $post->ID, $collections ), $collection['contract'] ); ?>><?php echo esc_html( $collection['label'] ); ?></option>
+									<option value="<?php echo esc_attr( $collection['contract'] ); ?>" data-collection-id="<?php echo esc_attr( $collection['collectionId'] ); ?>" <?php selected( $resolved ? $resolved['contract'] : '', $collection['contract'] ); ?>><?php echo esc_html( $collection['label'] ); ?></option>
 								<?php endforeach; ?>
 							</select>
 						</p>
@@ -79,7 +80,6 @@ class Metabox {
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
-			'collectionContract' => Settings::get_default_collection(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
 			'postId'             => $post ? $post->ID : 0,
 		) );

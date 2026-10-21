@@ -16,6 +16,7 @@ class Settings {
 	const OPTION_AI_POLICY_DEFAULT = 'tokenize_content_ai_policy_default';
 	const OPTION_CONTENT_SCOPE   = 'tokenize_content_content_scope';
 	const CAP_TOKENIZE = 'tokenize_content_tokenize_posts';
+	const COLLECTION_SERVICE = 'mip-erc721';
 	const GROUP_KEY      = 'tokenize-content-key';
 	const GROUP_DEFAULTS = 'tokenize-content-defaults';
 
@@ -40,8 +41,7 @@ class Settings {
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'siteName'           => get_bloginfo( 'name' ),
-			'collectionContract' => self::get_default_collection(),
-			'walletAddress'      => self::get_wallet_address(),
+						'walletAddress'      => self::get_wallet_address(),
 		) );
 	}
 
@@ -100,7 +100,9 @@ class Settings {
 	}
 
 	public static function save_wallet_address( string $address ) {
+		self::forget_collections();
 		update_option( self::OPTION_WALLET, self::sanitize_address( $address ) );
+		self::forget_collections();
 	}
 
 	public static function get_default_collection(): string {
@@ -123,25 +125,38 @@ class Settings {
 
 		$labels[ $contract ] = $label;
 		update_option( self::OPTION_COLLECTION_LABELS, $labels );
+		self::forget_collections();
 
 		if ( ! self::get_default_collection() ) {
 			self::set_default_collection( $contract );
 		}
 	}
 
-	public static function fetch_live_collections(): array {
-		$result = self::fetch_live_collections_checked();
-		return is_wp_error( $result ) ? array() : $result;
+	public static function collections_url( string $owner ): string {
+		return TOKENIZE_CONTENT_BACKEND_URL . '/v1/collections?owner=' . rawurlencode( $owner ) . '&service=' . self::COLLECTION_SERVICE . '&limit=100';
 	}
 
-	public static function fetch_live_collections_checked() {
+	private static function collections_cache_key(): string {
+		return 'tokenize_content_collections_' . md5( self::canonical_address( self::get_wallet_address() ) . '|' . self::get_api_key() );
+	}
+
+	public static function forget_collections() {
+		delete_transient( self::collections_cache_key() );
+	}
+
+	public static function fetch_live_collections() {
 		$key   = self::get_api_key();
 		$owner = self::get_wallet_address();
 		if ( ! $key || ! $owner ) {
 			return array();
 		}
 
-		$response = wp_remote_get( TOKENIZE_CONTENT_BACKEND_URL . '/v1/collections?owner=' . rawurlencode( $owner ), array(
+		$cached = get_transient( self::collections_cache_key() );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$response = wp_remote_get( self::collections_url( $owner ), array(
 			'headers' => array( 'x-api-key' => $key ),
 			'timeout' => 15,
 		) );
@@ -161,15 +176,20 @@ class Settings {
 		}
 		$collections = array();
 		foreach ( $items as $item ) {
-			if ( empty( $item['contractAddress'] ) ) {
+			if ( empty( $item['contractAddress'] ) || ! isset( $item['collectionId'] ) || '' === (string) $item['collectionId'] ) {
+				continue;
+			}
+			if ( self::COLLECTION_SERVICE !== ( isset( $item['service'] ) ? $item['service'] : '' ) ) {
 				continue;
 			}
 			$contract      = (string) $item['contractAddress'];
 			$collections[] = array(
-				'contract' => $contract,
-				'label'    => isset( $labels[ self::canonical_address( $contract ) ] ) ? $labels[ self::canonical_address( $contract ) ] : $contract,
+				'contract'     => $contract,
+				'collectionId' => (string) $item['collectionId'],
+				'label'        => isset( $labels[ self::canonical_address( $contract ) ] ) ? $labels[ self::canonical_address( $contract ) ] : $contract,
 			);
 		}
+		set_transient( self::collections_cache_key(), $collections, MINUTE_IN_SECONDS );
 		return $collections;
 	}
 
@@ -189,32 +209,34 @@ class Settings {
 		update_option( self::OPTION_CATEGORY_MAP, $sanitized );
 	}
 
-	public static function resolve_collection_for_post( int $post_id, array $live_collections ): string {
-		$valid = wp_list_pluck( $live_collections, 'contract' );
-		$find  = function ( string $wanted ) use ( $valid ): string {
-			foreach ( $valid as $contract ) {
-				if ( '' !== $wanted && self::canonical_address( (string) $contract ) === self::canonical_address( $wanted ) ) {
-					return (string) $contract;
+	public static function resolve_collection_for_post( int $post_id, array $live_collections ): ?array {
+		$find = function ( string $wanted ) use ( $live_collections ) {
+			foreach ( $live_collections as $collection ) {
+				if ( '' !== $wanted && self::canonical_address( $collection['contract'] ) === self::canonical_address( $wanted ) ) {
+					return $collection;
 				}
 			}
-			return '';
+			return null;
 		};
 
 		$map = self::get_category_map();
 		if ( $map ) {
 			foreach ( get_the_category( $post_id ) as $category ) {
-				if ( isset( $map[ $category->term_id ] ) && '' !== $find( $map[ $category->term_id ] ) ) {
-					return $find( $map[ $category->term_id ] );
+				if ( isset( $map[ $category->term_id ] ) ) {
+					$mapped = $find( $map[ $category->term_id ] );
+					if ( $mapped ) {
+						return $mapped;
+					}
 				}
 			}
 		}
 
 		$default = $find( self::get_default_collection() );
-		if ( '' !== $default ) {
+		if ( $default ) {
 			return $default;
 		}
 
-		return $valid ? (string) $valid[0] : '';
+		return $live_collections ? $live_collections[0] : null;
 	}
 
 	public static function get_content_scope(): string {
@@ -349,7 +371,7 @@ class Settings {
 				<?php submit_button(); ?>
 			</form>
 
-			<?php $fetched = self::fetch_live_collections_checked(); ?>
+			<?php $fetched = self::fetch_live_collections(); ?>
 			<?php $load_failed = is_wp_error( $fetched ); ?>
 			<?php $collections = $load_failed ? array() : $fetched; ?>
 			<?php if ( $collections ) : ?>

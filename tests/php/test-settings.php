@@ -176,8 +176,8 @@ class Test_Settings extends Tokenize_Test_Case {
 			return array(
 				'response' => array( 'code' => 200 ),
 				'body'     => wp_json_encode( array( 'data' => array(
-					array( 'contractAddress' => '0xaaa' ),
-					array( 'contractAddress' => '0xbbb' ),
+					array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721' ),
+					array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721' ),
 				) ) ),
 			);
 		} );
@@ -185,20 +185,9 @@ class Test_Settings extends Tokenize_Test_Case {
 		$collections = Settings::fetch_live_collections();
 
 		$this->assertSame( array(
-			array( 'contract' => '0xaaa', 'label' => 'General' ),
-			array( 'contract' => '0xbbb', 'label' => '0xbbb' ),
+			array( 'contract' => '0xaaa', 'collectionId' => '1', 'label' => 'General' ),
+			array( 'contract' => '0xbbb', 'collectionId' => '2', 'label' => '0xbbb' ),
 		), $collections );
-	}
-
-	public function test_fetch_live_collections_returns_nothing_when_the_backend_call_fails() {
-		update_option( Settings::OPTION_API_KEY, 'test-key' );
-		Settings::save_wallet_address( '0xbeef01' );
-
-		add_filter( 'pre_http_request', function () {
-			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
-		} );
-
-		$this->assertSame( array(), Settings::fetch_live_collections() );
 	}
 
 	public function test_resolve_collection_for_post_uses_the_category_map_when_the_mapped_collection_is_real() {
@@ -213,7 +202,7 @@ class Test_Settings extends Tokenize_Test_Case {
 
 		Settings::save_category_map( array( $news_cat_id => '0xbbb22' ) );
 
-		$this->assertSame( '0xbbb22', Settings::resolve_collection_for_post( $post_id, $live ) );
+		$this->assertSame( '0xbbb22', Settings::resolve_collection_for_post( $post_id, $live )['contract'] );
 	}
 
 	public function test_resolve_collection_for_post_falls_back_to_the_default_collection() {
@@ -223,7 +212,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		$live    = array( array( 'contract' => '0xdefa01', 'label' => 'Default' ) );
 		$post_id = $this->factory->post->create();
 
-		$this->assertSame( '0xdefa01', Settings::resolve_collection_for_post( $post_id, $live ) );
+		$this->assertSame( '0xdefa01', Settings::resolve_collection_for_post( $post_id, $live )['contract'] );
 	}
 
 	public function test_resolve_collection_for_post_ignores_a_stored_default_that_no_longer_exists() {
@@ -232,15 +221,15 @@ class Test_Settings extends Tokenize_Test_Case {
 		$live    = array( array( 'contract' => '0xreal01', 'label' => 'Real' ) );
 		$post_id = $this->factory->post->create();
 
-		$this->assertSame( '0xreal01', Settings::resolve_collection_for_post( $post_id, $live ) );
+		$this->assertSame( '0xreal01', Settings::resolve_collection_for_post( $post_id, $live )['contract'] );
 	}
 
-	public function test_resolve_collection_for_post_returns_empty_string_when_no_real_collections_exist() {
+	public function test_resolve_collection_for_post_returns_null_when_no_real_collections_exist() {
 		delete_option( Settings::OPTION_CATEGORY_MAP );
 		delete_option( Settings::OPTION_COLLECTION );
 		$post_id = $this->factory->post->create();
 
-		$this->assertSame( '', Settings::resolve_collection_for_post( $post_id, array() ) );
+		$this->assertNull( Settings::resolve_collection_for_post( $post_id, array() ) );
 	}
 
 	public function test_resolve_collection_matches_a_live_contract_that_differs_only_by_case_or_leading_zeros() {
@@ -250,7 +239,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		$post = $this->factory->post->create( array( 'post_category' => array( $cat ) ) );
 		Settings::save_category_map( array( $cat => '0xbbb22' ) );
 
-		$this->assertSame( '0x000BBB22', Settings::resolve_collection_for_post( $post, $live ) );
+		$this->assertSame( '0x000BBB22', Settings::resolve_collection_for_post( $post, $live )['contract'] );
 	}
 
 	public function test_resolve_collection_matches_the_stored_default_across_address_formats() {
@@ -258,7 +247,7 @@ class Test_Settings extends Tokenize_Test_Case {
 		Settings::set_default_collection( '0xdefa01' );
 		$live = array( array( 'contract' => '0xaaa11', 'label' => 'First' ), array( 'contract' => '0x0000DEFA01', 'label' => 'Default' ) );
 
-		$this->assertSame( '0x0000DEFA01', Settings::resolve_collection_for_post( $this->factory->post->create(), $live ) );
+		$this->assertSame( '0x0000DEFA01', Settings::resolve_collection_for_post( $this->factory->post->create(), $live )['contract'] );
 	}
 
 	public function test_fetch_live_collections_finds_the_label_across_address_formats() {
@@ -268,10 +257,10 @@ class Test_Settings extends Tokenize_Test_Case {
 		Settings::save_collection_label( '0xaaa', 'General' );
 
 		add_filter( 'pre_http_request', function () {
-			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0x000AAA' ) ) ) ) );
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0x000AAA', 'collectionId' => '5', 'service' => 'mip-erc721' ) ) ) ) );
 		} );
 
-		$this->assertSame( array( array( 'contract' => '0x000AAA', 'label' => 'General' ) ), Settings::fetch_live_collections() );
+		$this->assertSame( array( array( 'contract' => '0x000AAA', 'collectionId' => '5', 'label' => 'General' ) ), Settings::fetch_live_collections() );
 	}
 
 	public function test_checked_fetch_returns_an_error_when_the_request_fails() {
@@ -281,7 +270,7 @@ class Test_Settings extends Tokenize_Test_Case {
 			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
 		} );
 
-		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections_checked() );
+		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections() );
 	}
 
 	public function test_checked_fetch_returns_an_error_on_a_non_success_status() {
@@ -291,7 +280,7 @@ class Test_Settings extends Tokenize_Test_Case {
 			return array( 'response' => array( 'code' => 503 ), 'body' => '' );
 		} );
 
-		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections_checked() );
+		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections() );
 	}
 
 	public function test_checked_fetch_returns_an_empty_list_not_an_error_when_the_wallet_has_none() {
@@ -301,7 +290,7 @@ class Test_Settings extends Tokenize_Test_Case {
 			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array() ) ) );
 		} );
 
-		$this->assertSame( array(), Settings::fetch_live_collections_checked() );
+		$this->assertSame( array(), Settings::fetch_live_collections() );
 	}
 
 	public function test_settings_page_says_collections_could_not_be_loaded_instead_of_none_found() {
@@ -318,5 +307,68 @@ class Test_Settings extends Tokenize_Test_Case {
 
 		$this->assertStringContainsString( 'Collections could not be loaded right now', $html );
 		$this->assertStringNotContainsString( 'No collections found for this wallet yet', $html );
+	}
+
+	private function backend_returns( array $items, ?int &$calls = null, ?string &$url = null ) {
+		add_filter( 'pre_http_request', function ( $pre, $args, $request_url ) use ( $items, &$calls, &$url ) {
+			$calls = (int) $calls + 1;
+			$url   = $request_url;
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => $items ) ) );
+		}, 10, 3 );
+	}
+
+	private function configured() {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+	}
+
+	public function test_only_mip_erc721_collections_that_have_a_collection_id_are_usable() {
+		$this->configured();
+		$this->backend_returns( array(
+			array( 'contractAddress' => '0xaaa', 'collectionId' => '7', 'service' => 'mip-erc721' ),
+			array( 'contractAddress' => '0xbbb', 'collectionId' => null, 'service' => 'mip-erc721' ),
+			array( 'contractAddress' => '0xccc', 'collectionId' => '3', 'service' => 'drop-collection' ),
+		), $calls, $url );
+
+		$collections = Settings::fetch_live_collections();
+
+		$this->assertSame( array( array( 'contract' => '0xaaa', 'collectionId' => '7', 'label' => '0xaaa' ) ), $collections );
+		$this->assertStringContainsString( 'service=mip-erc721', $url );
+		$this->assertStringContainsString( 'limit=100', $url );
+	}
+
+	public function test_a_successful_lookup_is_reused_instead_of_asking_again() {
+		$this->configured();
+		$this->backend_returns( array( array( 'contractAddress' => '0xaaa', 'collectionId' => '7', 'service' => 'mip-erc721' ) ), $calls );
+
+		Settings::fetch_live_collections();
+		Settings::fetch_live_collections();
+
+		$this->assertSame( 1, $calls );
+	}
+
+	public function test_saving_a_collection_label_makes_the_next_lookup_fresh() {
+		$this->configured();
+		$this->backend_returns( array( array( 'contractAddress' => '0xaaa', 'collectionId' => '7', 'service' => 'mip-erc721' ) ), $calls );
+		Settings::fetch_live_collections();
+
+		Settings::save_collection_label( '0xaaa', 'General' );
+		$collections = Settings::fetch_live_collections();
+
+		$this->assertSame( 2, $calls );
+		$this->assertSame( 'General', $collections[0]['label'] );
+	}
+
+	public function test_a_failed_lookup_is_not_remembered() {
+		$this->configured();
+		add_filter( 'pre_http_request', function () {
+			return new WP_Error( 'http_request_failed', 'down' );
+		} );
+		$this->assertInstanceOf( WP_Error::class, Settings::fetch_live_collections() );
+		remove_all_filters( 'pre_http_request' );
+
+		$this->backend_returns( array( array( 'contractAddress' => '0xaaa', 'collectionId' => '7', 'service' => 'mip-erc721' ) ) );
+
+		$this->assertCount( 1, Settings::fetch_live_collections() );
 	}
 }

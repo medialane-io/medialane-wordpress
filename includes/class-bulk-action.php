@@ -61,7 +61,6 @@ class BulkAction {
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
-			'collectionContract' => Settings::get_default_collection(),
 			'licenseDefault'     => Settings::get_license_default(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
 		) );

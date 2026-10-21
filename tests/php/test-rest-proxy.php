@@ -112,23 +112,6 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertStringEndsWith( '/v1/paymaster/invoke/execute', $captured_urls[1] );
 	}
 
-	public function test_deploy_build_and_provisioning_routes_forward_to_the_fixed_backend_path() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-		update_option( Settings::OPTION_API_KEY, 'test-key' );
-
-		$captured_urls = array();
-		add_filter( 'pre_http_request', function ( $preempt, $args, $url ) use ( &$captured_urls ) {
-			$captured_urls[] = $url;
-			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'ok' => true ) ) );
-		}, 10, 3 );
-
-		$this->server->dispatch( new WP_REST_Request( 'POST', '/tokenize-content/v1/paymaster/deploy/build' ) );
-		$this->server->dispatch( new WP_REST_Request( 'POST', '/tokenize-content/v1/business/provisioning' ) );
-
-		$this->assertStringEndsWith( '/v1/paymaster/deploy/build', $captured_urls[0] );
-		$this->assertStringEndsWith( '/v1/business/provisioning', $captured_urls[1] );
-	}
-
 	public function test_settings_collections_route_saves_a_collection_s_label() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 
@@ -224,7 +207,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$calls = 0;
 		add_filter( 'pre_http_request', function () use ( &$calls ) {
 			$calls++;
-			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0xaaa' ) ) ) ) );
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0xaaa', 'collectionId' => '4', 'service' => 'mip-erc721' ) ) ) ) );
 		} );
 
 		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
@@ -233,6 +216,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 
 		$this->assertSame( 1, $calls );
 		$this->assertSame( '0xaaa', $response->get_data()['posts'][ $posts[0] ]['collectionContract'] );
+		$this->assertSame( '4', $response->get_data()['posts'][ $posts[0] ]['collectionId'] );
 		remove_all_filters( 'pre_http_request' );
 	}
 
@@ -320,6 +304,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$routes = array_keys( $this->server->get_routes() );
 
 		$this->assertNotContains( '/tokenize-content/v1/settings/collection', $routes );
+		$this->assertNotContains( '/tokenize-content/v1/paymaster/deploy/build', $routes );
 		foreach ( $routes as $route ) {
 			$this->assertStringStartsNotWith( '/tokenize-content/v1/tokens/', $route );
 		}
@@ -360,5 +345,239 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 
 		$this->assertSame( 422, $response->get_status() );
 		$this->assertSame( 'none', \TokenizeContent\PostMeta::get_status( $draft ) );
+	}
+
+	private function capture_forwarded( &$captured ) {
+		add_filter( 'pre_http_request', function ( $pre, $args, $url ) use ( &$captured ) {
+			$captured = array( 'url' => $url, 'args' => $args );
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'ok' => true ) ) );
+		}, 10, 3 );
+	}
+
+	private function json_request( string $route, array $body, array $headers = array() ): WP_REST_Request {
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1' . $route );
+		$request->set_header( 'content-type', 'application/json' );
+		foreach ( $headers as $name => $value ) {
+			$request->set_header( $name, $value );
+		}
+		$request->set_body( wp_json_encode( $body ) );
+		return $request;
+	}
+
+	public function test_only_the_fields_a_route_needs_are_forwarded() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$this->server->dispatch( $this->json_request( '/intents/mint', array(
+			'owner' => '0x1', 'recipient' => '0x2', 'collectionId' => '7', 'tokenUri' => 'ipfs://x', 'royaltyBps' => 0,
+			'service' => 'pop-protocol', 'backend_path' => '/v1/anything',
+		) ) );
+
+		$this->assertSame( array( 'owner' => '0x1', 'recipient' => '0x2', 'collectionId' => '7', 'tokenUri' => 'ipfs://x', 'royaltyBps' => 0 ), json_decode( $captured['args']['body'], true ) );
+	}
+
+	public function test_provisioning_always_targets_starknet() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$this->server->dispatch( $this->json_request( '/business/provisioning', array( 'email' => 'a@example.org', 'chain' => 'ETHEREUM' ) ) );
+
+		$this->assertSame( array( 'email' => 'a@example.org', 'chain' => 'STARKNET' ), json_decode( $captured['args']['body'], true ) );
+	}
+
+	public function test_the_session_header_becomes_a_bearer_token_on_paymaster_routes_only() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$this->server->dispatch( $this->json_request( '/paymaster/invoke/build', array( 'intentIds' => array( 'i1' ) ), array( 'X-Tokenize-Session' => 'tok.123_abc' ) ) );
+		$this->assertSame( 'Bearer tok.123_abc', $captured['args']['headers']['Authorization'] );
+		$this->assertSame( 'test-key', $captured['args']['headers']['x-api-key'] );
+
+		$this->server->dispatch( $this->json_request( '/intents/mint', array( 'owner' => '0x1' ), array( 'X-Tokenize-Session' => 'tok.123_abc' ) ) );
+		$this->assertArrayNotHasKey( 'Authorization', $captured['args']['headers'] );
+	}
+
+	public function test_a_malformed_session_header_is_not_forwarded() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$this->server->dispatch( $this->json_request( '/paymaster/invoke/build', array( 'intentIds' => array( 'i1' ) ), array( 'X-Tokenize-Session' => "bad token\r\nX-Evil: 1" ) ) );
+
+		$this->assertArrayNotHasKey( 'Authorization', $captured['args']['headers'] );
+	}
+
+	public function test_sign_in_routes_forward_to_the_fixed_backend_paths() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$this->server->dispatch( $this->json_request( '/auth/siws/nonce', array( 'walletAddress' => '0x1' ) ) );
+		$this->assertStringEndsWith( '/v1/auth/siws/nonce', $captured['url'] );
+
+		$this->server->dispatch( $this->json_request( '/auth/siws/verify', array( 'walletAddress' => '0x1', 'nonce' => 'n', 'signature' => array( '0x1', '0x2' ) ) ) );
+		$this->assertStringEndsWith( '/v1/auth/siws/verify', $captured['url'] );
+	}
+
+	public function test_the_backend_error_code_is_kept_so_the_client_can_react_to_it() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 502 ), 'body' => wp_json_encode( array( 'error' => 'May have been submitted', 'code' => 'may_have_broadcast' ) ) );
+		} );
+
+		$response = $this->server->dispatch( $this->json_request( '/paymaster/invoke/execute', array( 'intentIds' => array( 'i1' ) ) ) );
+
+		$this->assertSame( 502, $response->get_status() );
+		$this->assertSame( 'may_have_broadcast', $response->get_data()['code'] );
+	}
+
+	public function test_listing_collections_asks_only_for_this_plugin_s_collections() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$request = new WP_REST_Request( 'GET', '/tokenize-content/v1/collections' );
+		$request->set_query_params( array( 'owner' => '0xabc' ) );
+		$this->server->dispatch( $request );
+
+		$this->assertStringContainsString( 'owner=0xabc', $captured['url'] );
+		$this->assertStringContainsString( 'service=mip-erc721', $captured['url'] );
+		$this->assertStringContainsString( 'limit=100', $captured['url'] );
+	}
+
+	private function rpc_request( $body ): WP_REST_Request {
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/rpc' );
+		$request->set_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $body ) );
+		return $request;
+	}
+
+	public function test_rpc_forwards_a_read_only_call_to_the_backend_rpc_path() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$response = $this->server->dispatch( $this->rpc_request( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'starknet_getTransactionReceipt', 'params' => array( 'transaction_hash' => '0xabc' ) ) ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertStringEndsWith( '/v1/rpc', $captured['url'] );
+		$this->assertSame( 'starknet_getTransactionReceipt', json_decode( $captured['args']['body'], true )['method'] );
+	}
+
+	public function rpc_bodies_that_must_be_refused() {
+		return array(
+			'broadcast'        => array( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'starknet_addInvokeTransaction', 'params' => array() ) ),
+			'unknown method'   => array( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'admin_shutdown', 'params' => array() ) ),
+			'no method'        => array( array( 'jsonrpc' => '2.0', 'id' => 1 ) ),
+			'batch with a bad' => array( array( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'starknet_chainId' ), array( 'jsonrpc' => '2.0', 'id' => 2, 'method' => 'starknet_addInvokeTransaction' ) ) ),
+			'not an object'    => array( 'starknet_chainId' ),
+		);
+	}
+
+	/**
+	 * @dataProvider rpc_bodies_that_must_be_refused
+	 */
+	public function test_rpc_refuses_anything_outside_the_read_only_allow_list( $body ) {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+
+		$response = $this->server->dispatch( $this->rpc_request( $body ) );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertNull( $captured );
+	}
+
+	public function test_rpc_requires_the_tokenize_capability() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$response = $this->server->dispatch( $this->rpc_request( array( 'jsonrpc' => '2.0', 'id' => 1, 'method' => 'starknet_chainId' ) ) );
+
+		$this->assertSame( 403, $response->get_status() );
+	}
+
+	private function post_with_featured_image(): int {
+		$post_id    = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		$attachment = $this->factory->attachment->create_upload_object( DIR_TESTDATA . '/images/canola.jpg', $post_id );
+		set_post_thumbnail( $post_id, $attachment );
+		return $post_id;
+	}
+
+	public function test_featured_image_upload_sends_the_attachment_file_to_the_backend() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$post_id = $this->post_with_featured_image();
+		add_filter( 'pre_http_request', function ( $pre, $args, $url ) use ( &$captured ) {
+			$captured = array( 'url' => $url, 'args' => $args );
+			return array( 'response' => array( 'code' => 201 ), 'body' => wp_json_encode( array( 'data' => array( 'url' => 'ipfs://img' ) ) ) );
+		}, 10, 3 );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/featured-image" ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'ipfs://img', $response->get_data()['data']['url'] );
+		$this->assertStringEndsWith( '/v1/metadata/upload-file', $captured['url'] );
+		$this->assertStringContainsString( 'filename="canola', $captured['args']['body'] );
+		$this->assertStringContainsString( 'Content-Type: image/jpeg', $captured['args']['body'] );
+		$this->assertStringContainsString( file_get_contents( DIR_TESTDATA . '/images/canola.jpg' ), $captured['args']['body'] );
+	}
+
+	public function test_featured_image_upload_is_empty_when_the_post_has_no_featured_image() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$this->capture_forwarded( $captured );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/featured-image" ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertNull( $response->get_data()['data']['url'] );
+		$this->assertNull( $captured );
+	}
+
+	public function test_featured_image_upload_needs_edit_access_to_the_post() {
+		$post_id = $this->post_with_featured_image();
+		$author  = $this->factory->user->create( array( 'role' => 'author' ) );
+		get_role( 'author' )->add_cap( Settings::CAP_TOKENIZE );
+		wp_set_current_user( $author );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/featured-image" ) );
+
+		$this->assertSame( 403, $response->get_status() );
+	}
+
+	public function test_tokenize_data_says_whether_the_post_has_a_featured_image_instead_of_a_url() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$with    = $this->post_with_featured_image();
+		$without = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $with, $without ) ) );
+		$posts = $this->server->dispatch( $request )->get_data()['posts'];
+
+		$this->assertTrue( $posts[ $with ]['hasImage'] );
+		$this->assertFalse( $posts[ $without ]['hasImage'] );
+		$this->assertArrayNotHasKey( 'image', $posts[ $with ] );
+	}
+
+	public function test_a_body_field_named_id_cannot_replace_the_post_in_the_url() {
+		$author = $this->factory->user->create( array( 'role' => 'author' ) );
+		get_role( 'author' )->add_cap( Settings::CAP_TOKENIZE );
+		wp_set_current_user( $author );
+		$mine  = $this->factory->post->create( array( 'post_status' => 'publish', 'post_author' => $author ) );
+		$other = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+
+		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$mine}/minting" );
+		$request->set_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( array( 'id' => $other ) ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $mine ) );
+		$this->assertSame( 'none', \TokenizeContent\PostMeta::get_status( $other ) );
 	}
 }
