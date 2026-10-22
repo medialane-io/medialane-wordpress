@@ -7,7 +7,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@medialane/sdk": "^0.190.0",
+    "@medialane/sdk": "^0.191.0",
     "get-starknet-core": "^4.0.0",
     "starknet": "^10.8.0"
   },

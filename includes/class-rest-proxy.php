@@ -37,8 +37,6 @@ class RestProxy {
 
 	const RPC_MAX_BATCH = 20;
 
-	const METADATA_MAX_BYTES = 480 * 1024;
-
 	public static function register_routes() {
 		foreach ( self::FORWARDS as $route => $forward ) {
 			register_rest_route( self::NAMESPACE, $route, array(
@@ -135,10 +133,6 @@ class RestProxy {
 				continue;
 			}
 			$content = 'full' === $scope ? Description::markdown( $post ) : '';
-			if ( strlen( (string) wp_json_encode( $content ) ) > self::METADATA_MAX_BYTES ) {
-				$posts[ $id ] = array( 'error' => __( 'This post is too long to tokenize in full. Switch the content setting to Excerpt.', 'tokenize-content' ) );
-				continue;
-			}
 			$collection   = Settings::resolve_collection_for_post( $id, $live );
 			$posts[ $id ] = array(
 				'title'              => get_the_title( $post ),

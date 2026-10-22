@@ -117,10 +117,6 @@ msgstr ""
 msgid "Collections could not be loaded right now. Try again."
 msgstr ""
 
-#: includes/class-rest-proxy.php:139
-msgid "This post is too long to tokenize in full. Switch the content setting to Excerpt."
-msgstr ""
-
 #: includes/class-rest-proxy.php:180
 msgid "The transaction reference is malformed."
 msgstr ""
