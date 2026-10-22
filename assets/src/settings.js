@@ -4,7 +4,7 @@ import { assertSiteWallet, sameAddress } from "./site-wallet.js";
 import { __ } from "@wordpress/i18n";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
-  saveCollectionEntry, saveCategoryMap, saveWalletAddress, getAccount, saveDefaultCollection,
+  saveCategoryMap, saveWalletAddress, getAccount, saveDefaultCollection,
 } from "./api.js";
 
 export async function pollForNewCollection(owner, known, { attempts = 10, intervalMs = 3000 } = {}) {
@@ -17,7 +17,7 @@ export async function pollForNewCollection(owner, known, { attempts = 10, interv
   return null;
 }
 
-export async function createAndRegisterCollection(address, account, label, polling) {
+export async function createCollection(address, account, label, polling) {
   const existing = ((await getCollectionsByOwner(address)).data || []).map((c) => c.contractAddress);
 
   const intentRes = await createCollectionIntent({ owner: address, name: label, symbol: "POST" });
@@ -25,11 +25,7 @@ export async function createAndRegisterCollection(address, account, label, polli
   await waitForConfirmation(txHash);
   await syncCollectionTx(txHash).catch((err) => console.warn("Medialane: eager tx sync failed", err));
 
-  const contract = await pollForNewCollection(address, existing, polling);
-  if (contract) {
-    await saveCollectionEntry({ contract, label });
-  }
-  return contract;
+  return pollForNewCollection(address, existing, polling);
 }
 
 export async function creditsText() {
@@ -75,20 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  document.querySelectorAll(".tokenize-content-collection-save").forEach((saveBtn) => {
-    saveBtn.addEventListener("click", async () => {
-      const input = Array.from(document.querySelectorAll(".tokenize-content-collection-label")).find((el) => el.dataset.contract === saveBtn.dataset.contract);
-      saveBtn.disabled = true;
-      try {
-        await saveCollectionEntry({ contract: saveBtn.dataset.contract, label: input.value.trim() });
-        location.reload();
-      } catch (err) {
-        saveBtn.disabled = false;
-        alert(err.message || __("Failed to save the collection label.", "tokenize-content"));
-      }
-    });
-  });
-
   document.querySelectorAll(".tokenize-content-collection-default").forEach((defaultBtn) => {
     defaultBtn.addEventListener("click", async () => {
       defaultBtn.disabled = true;
@@ -116,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const { address, account } = await connectWallet();
         assertSiteWallet(address, window.tokenizeContentData.walletAddress);
-        await createAndRegisterCollection(address, account, label);
+        await createCollection(address, account, label);
         location.reload();
       } catch (err) {
         createCollectionBtn.disabled = false;

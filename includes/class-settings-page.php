@@ -214,7 +214,7 @@ class SettingsPage {
 				<table class="widefat" style="max-width:800px;">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Label', 'tokenize-content' ); ?></th>
+							<th><?php esc_html_e( 'Name', 'tokenize-content' ); ?></th>
 							<th><?php esc_html_e( 'Contract', 'tokenize-content' ); ?></th>
 							<th><?php esc_html_e( 'Default', 'tokenize-content' ); ?></th>
 						</tr>
@@ -222,10 +222,7 @@ class SettingsPage {
 					<tbody>
 						<?php foreach ( $collections as $collection ) : ?>
 							<tr>
-								<td>
-									<input type="text" class="regular-text tokenize-content-collection-label" data-contract="<?php echo esc_attr( $collection['contract'] ); ?>" value="<?php echo esc_attr( Settings::stored_label( $collection['contract'] ) ); ?>" placeholder="<?php echo esc_attr( $collection['contract'] ); ?>" aria-label="<?php esc_attr_e( 'Label', 'tokenize-content' ); ?>" />
-									<button type="button" class="button tokenize-content-collection-save" data-contract="<?php echo esc_attr( $collection['contract'] ); ?>"><?php esc_html_e( 'Save', 'tokenize-content' ); ?></button>
-								</td>
+								<td><?php echo esc_html( $collection['label'] ); ?></td>
 								<td><code><?php echo esc_html( $collection['contract'] ); ?></code></td>
 								<td>
 									<?php if ( $default && Settings::same_address( $default['contract'], $collection['contract'] ) ) : ?>

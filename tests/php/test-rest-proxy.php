@@ -144,27 +144,6 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertStringEndsWith( '/v1/paymaster/invoke/execute', $captured_urls[1] );
 	}
 
-	public function test_settings_collections_route_saves_a_collection_s_label() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-
-		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/collections' );
-		$request->set_body_params( array( 'contract' => '0xaaa11', 'label' => 'Politics' ) );
-		$response = $this->server->dispatch( $request );
-
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( array( '0xaaa11' => 'Politics' ), $response->get_data()['labels'] );
-	}
-
-	public function test_settings_collections_route_requires_admin_permission() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'subscriber' ) ) );
-
-		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/collections' );
-		$request->set_body_params( array( 'contract' => '0xaaa11', 'label' => 'Politics' ) );
-		$response = $this->server->dispatch( $request );
-
-		$this->assertSame( 403, $response->get_status() );
-	}
-
 	public function test_settings_wallet_route_saves_the_address_immediately() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 
@@ -261,6 +240,32 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 				array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721' ),
 			) ) ) );
 		} );
+	}
+
+	public function test_there_is_no_route_to_store_a_collection_label() {
+		$this->assertArrayNotHasKey( '/tokenize-content/v1/settings/collections', $this->server->get_routes() );
+	}
+
+	public function test_listing_collections_drops_the_cached_list_so_the_next_page_load_is_fresh() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		$calls = 0;
+		add_filter( 'pre_http_request', function () use ( &$calls ) {
+			$calls++;
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721' ) ) ) ) );
+		} );
+		Settings::fetch_live_collections();
+		Settings::fetch_live_collections();
+		$this->assertSame( 1, $calls );
+
+		$request = new WP_REST_Request( 'GET', '/tokenize-content/v1/collections' );
+		$request->set_param( 'owner', '0xbeef01' );
+		$this->server->dispatch( $request );
+		Settings::fetch_live_collections();
+
+		$this->assertSame( 3, $calls );
+		remove_all_filters( 'pre_http_request' );
 	}
 
 	public function test_the_default_collection_can_be_changed_to_another_of_the_wallet_s_collections() {

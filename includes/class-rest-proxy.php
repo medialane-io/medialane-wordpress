@@ -84,11 +84,6 @@ class RestProxy {
 			'callback'            => array( __CLASS__, 'save_default_collection' ),
 			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
 		) );
-		register_rest_route( self::NAMESPACE, '/settings/collections', array(
-			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'save_collections' ),
-			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
-		) );
 		register_rest_route( self::NAMESPACE, '/settings/category-map', array(
 			'methods'             => 'POST',
 			'callback'            => array( __CLASS__, 'save_category_map' ),
@@ -235,13 +230,6 @@ class RestProxy {
 		return rest_ensure_response( array( 'address' => Settings::get_wallet_address() ) );
 	}
 
-	public static function save_collections( \WP_REST_Request $request ) {
-		$contract = (string) $request->get_param( 'contract' );
-		$label    = (string) $request->get_param( 'label' );
-		Settings::save_collection_label( $contract, $label );
-		return rest_ensure_response( array( 'labels' => Settings::get_collection_labels() ) );
-	}
-
 	public static function save_default_collection( \WP_REST_Request $request ) {
 		$live = Settings::fetch_live_collections();
 		if ( is_wp_error( $live ) ) {
@@ -280,6 +268,7 @@ class RestProxy {
 		if ( is_wp_error( $key ) ) {
 			return $key;
 		}
+		Settings::forget_collections();
 		$owner = (string) $request->get_param( 'owner' );
 		$response = wp_remote_get( Settings::collections_url( $owner ), array(
 			'headers' => array( 'x-api-key' => $key ),

@@ -10,11 +10,11 @@ class Settings {
 	const OPTION_API_KEY    = 'tokenize_content_api_key';
 	const OPTION_WALLET     = 'tokenize_content_wallet_address';
 	const OPTION_COLLECTION = 'tokenize_content_collection_contract';
-	const OPTION_COLLECTION_LABELS = 'tokenize_content_collection_labels';
 	const OPTION_CATEGORY_MAP = 'tokenize_content_category_collections';
 	const OPTION_LICENSE_DEFAULT = 'tokenize_content_license_default';
 	const OPTION_AI_POLICY_DEFAULT = 'tokenize_content_ai_policy_default';
 	const OPTION_CONTENT_SCOPE   = 'tokenize_content_content_scope';
+	const LEGACY_COLLECTION_LABELS = 'tokenize_content_collection_labels';
 	const CAP_TOKENIZE = 'tokenize_content_tokenize_posts';
 	const COLLECTION_SERVICE = 'mip-erc721';
 	const GROUP_KEY      = 'tokenize-content-key';
@@ -50,6 +50,7 @@ class Settings {
 				delete_option( $option );
 			}
 		}
+		delete_option( self::LEGACY_COLLECTION_LABELS );
 		foreach ( wp_roles()->role_objects as $role ) {
 			$role->remove_cap( self::CAP_TOKENIZE );
 		}
@@ -67,6 +68,7 @@ class Settings {
 	}
 
 	public static function register_settings() {
+		delete_option( self::LEGACY_COLLECTION_LABELS );
 		register_setting( self::GROUP_KEY, self::OPTION_API_KEY, array( 'sanitize_callback' => array( __CLASS__, 'sanitize_api_key' ) ) );
 		register_setting( self::GROUP_DEFAULTS, self::OPTION_LICENSE_DEFAULT, array( 'sanitize_callback' => 'sanitize_text_field' ) );
 		register_setting( self::GROUP_DEFAULTS, self::OPTION_AI_POLICY_DEFAULT, array( 'sanitize_callback' => 'sanitize_text_field' ) );
@@ -128,38 +130,6 @@ class Settings {
 		update_option( self::OPTION_COLLECTION, self::sanitize_address( $address ) );
 	}
 
-	public static function get_collection_labels(): array {
-		$labels = get_option( self::OPTION_COLLECTION_LABELS, array() );
-		return is_array( $labels ) ? $labels : array();
-	}
-
-	public static function save_collection_label( string $contract, string $label ) {
-		$contract = self::sanitize_address( $contract );
-		$label    = sanitize_text_field( $label );
-		$labels   = self::get_collection_labels();
-
-		if ( '' === $label ) {
-			unset( $labels[ $contract ] );
-		} else {
-			$labels[ $contract ] = $label;
-		}
-		update_option( self::OPTION_COLLECTION_LABELS, $labels );
-		self::forget_collections();
-
-		if ( '' !== $label && ! self::get_default_collection() ) {
-			self::set_default_collection( $contract );
-		}
-	}
-
-	public static function stored_label( string $contract ): string {
-		foreach ( self::get_collection_labels() as $stored => $label ) {
-			if ( self::same_address( (string) $stored, $contract ) ) {
-				return (string) $label;
-			}
-		}
-		return '';
-	}
-
 	public static function collections_url( string $owner ): string {
 		return TOKENIZE_CONTENT_BACKEND_URL . '/v1/collections?owner=' . rawurlencode( $owner ) . '&service=' . self::COLLECTION_SERVICE . '&limit=100';
 	}
@@ -198,10 +168,6 @@ class Settings {
 		$body  = json_decode( wp_remote_retrieve_body( $response ), true );
 		$items = ( is_array( $body ) && isset( $body['data'] ) && is_array( $body['data'] ) ) ? $body['data'] : array();
 
-		$labels = array();
-		foreach ( self::get_collection_labels() as $stored => $label ) {
-			$labels[ self::canonical_address( (string) $stored ) ] = $label;
-		}
 		$collections = array();
 		foreach ( $items as $item ) {
 			if ( empty( $item['contractAddress'] ) || ! isset( $item['collectionId'] ) || '' === (string) $item['collectionId'] ) {
@@ -211,10 +177,11 @@ class Settings {
 				continue;
 			}
 			$contract      = (string) $item['contractAddress'];
+			$name          = isset( $item['name'] ) ? trim( (string) $item['name'] ) : '';
 			$collections[] = array(
 				'contract'     => $contract,
 				'collectionId' => (string) $item['collectionId'],
-				'label'        => isset( $labels[ self::canonical_address( $contract ) ] ) ? $labels[ self::canonical_address( $contract ) ] : $contract,
+				'label'        => '' !== $name ? $name : $contract,
 			);
 		}
 		set_transient( self::collections_cache_key(), $collections, MINUTE_IN_SECONDS );

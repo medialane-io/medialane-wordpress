@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-22T21:15:58+00:00\n"
+"POT-Creation-Date: 2026-10-22T21:24:19+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: tokenize-content\n"
@@ -92,12 +92,12 @@ msgid "Check status"
 msgstr ""
 
 #: includes/class-metabox.php:45
-#: includes/class-settings-page.php:243
+#: includes/class-settings-page.php:240
 msgid "Collections could not be loaded right now. Reload to try again."
 msgstr ""
 
 #: includes/class-metabox.php:49
-#: includes/class-settings-page.php:273
+#: includes/class-settings-page.php:270
 msgid "Collection"
 msgstr ""
 
@@ -124,41 +124,41 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-#: includes/class-rest-proxy.php:124
-#: includes/class-rest-proxy.php:306
+#: includes/class-rest-proxy.php:119
+#: includes/class-rest-proxy.php:295
 msgid "You can't tokenize a post you don't have edit access to."
 msgstr ""
 
-#: includes/class-rest-proxy.php:130
-#: includes/class-rest-proxy.php:248
+#: includes/class-rest-proxy.php:125
+#: includes/class-rest-proxy.php:236
 msgid "Collections could not be loaded right now. Try again."
 msgstr ""
 
-#: includes/class-rest-proxy.php:149
+#: includes/class-rest-proxy.php:144
 msgid "This post is too long to tokenize in full. Switch the content setting to Excerpt."
 msgstr ""
 
-#: includes/class-rest-proxy.php:190
+#: includes/class-rest-proxy.php:185
 msgid "The transaction reference is malformed."
 msgstr ""
 
-#: includes/class-rest-proxy.php:257
+#: includes/class-rest-proxy.php:245
 msgid "That collection does not belong to the connected wallet."
 msgstr ""
 
-#: includes/class-rest-proxy.php:314
+#: includes/class-rest-proxy.php:303
 msgid "No Medialane API key configured."
 msgstr ""
 
-#: includes/class-rest-proxy.php:367
+#: includes/class-rest-proxy.php:356
 msgid "That request is not allowed."
 msgstr ""
 
-#: includes/class-rest-proxy.php:415
+#: includes/class-rest-proxy.php:404
 msgid "The featured image file could not be read."
 msgstr ""
 
-#: includes/class-rest-proxy.php:427
+#: includes/class-rest-proxy.php:416
 msgid "Medialane backend request failed."
 msgstr ""
 
@@ -254,7 +254,7 @@ msgid "Not connected"
 msgstr ""
 
 #: includes/class-settings-page.php:150
-#: assets/src/settings.js:66
+#: assets/src/settings.js:62
 msgid "Connect Wallet"
 msgstr ""
 
@@ -300,14 +300,13 @@ msgid "Whether AI systems may use tokenized content for training. Recorded on-ch
 msgstr ""
 
 #: includes/class-settings-page.php:212
+#: includes/class-settings-page.php:239
 #: includes/class-settings-page.php:242
-#: includes/class-settings-page.php:245
 msgid "Collections"
 msgstr ""
 
 #: includes/class-settings-page.php:217
-#: includes/class-settings-page.php:226
-msgid "Label"
+msgid "Name"
 msgstr ""
 
 #: includes/class-settings-page.php:218
@@ -318,61 +317,57 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: includes/class-settings-page.php:227
-msgid "Save"
-msgstr ""
-
-#: includes/class-settings-page.php:232
+#: includes/class-settings-page.php:229
 msgid "Yes"
 msgstr ""
 
-#: includes/class-settings-page.php:234
+#: includes/class-settings-page.php:231
 msgid "Make default"
 msgstr ""
 
-#: includes/class-settings-page.php:246
+#: includes/class-settings-page.php:243
 msgid "No collections found for this wallet yet. Create one below."
 msgstr ""
 
-#: includes/class-settings-page.php:254
+#: includes/class-settings-page.php:251
 msgid "Create a new collection"
 msgstr ""
 
-#: includes/class-settings-page.php:255
+#: includes/class-settings-page.php:252
 msgid "A separate collection to mint into — useful for organizing tokenized posts by section, author, or archive. The first collection you create becomes the default."
 msgstr ""
 
-#: includes/class-settings-page.php:257
+#: includes/class-settings-page.php:254
 msgid "Collection name, e.g. Politics"
 msgstr ""
 
-#: includes/class-settings-page.php:258
-#: assets/src/settings.js:123
+#: includes/class-settings-page.php:255
+#: assets/src/settings.js:105
 msgid "Create Collection"
 msgstr ""
 
-#: includes/class-settings-page.php:267
+#: includes/class-settings-page.php:264
 msgid "Route categories to collections"
 msgstr ""
 
-#: includes/class-settings-page.php:268
+#: includes/class-settings-page.php:265
 msgid "Posts in a mapped category are tokenized into that collection instead of the default. Bulk tokenization and the per-post editor both use this."
 msgstr ""
 
-#: includes/class-settings-page.php:272
+#: includes/class-settings-page.php:269
 msgid "Category"
 msgstr ""
 
-#: includes/class-settings-page.php:282
+#: includes/class-settings-page.php:279
 msgid "Use default collection"
 msgstr ""
 
-#: includes/class-settings-page.php:292
-#: assets/src/settings.js:146
+#: includes/class-settings-page.php:289
+#: assets/src/settings.js:128
 msgid "Save Mapping"
 msgstr ""
 
-#: includes/class-settings.php:196
+#: includes/class-settings.php:166
 msgid "Collections could not be loaded."
 msgstr ""
 
@@ -456,55 +451,51 @@ msgstr ""
 msgid "No collection configured. Connect a wallet in Medialane Settings first."
 msgstr ""
 
-#: assets/src/settings.js:40
+#: assets/src/settings.js:36
 msgid "The API key was not accepted. Check it at portal.medialane.io/account."
 msgstr ""
 
-#: assets/src/settings.js:41
+#: assets/src/settings.js:37
 msgid "No credits left. Add credits at portal.medialane.io/account."
 msgstr ""
 
-#: assets/src/settings.js:42
+#: assets/src/settings.js:38
 msgid "Could not check the account right now."
 msgstr ""
 
-#: assets/src/settings.js:59
+#: assets/src/settings.js:55
 msgid "Connecting…"
 msgstr ""
 
-#: assets/src/settings.js:67
+#: assets/src/settings.js:63
 msgid "Failed to connect wallet."
 msgstr ""
 
-#: assets/src/settings.js:87
-msgid "Failed to save the collection label."
-msgstr ""
-
-#: assets/src/settings.js:100
+#: assets/src/settings.js:82
 msgid "Failed to set the default collection."
 msgstr ""
 
-#: assets/src/settings.js:111
+#: assets/src/settings.js:93
 msgid "Give the new collection a name first."
 msgstr ""
 
-#: assets/src/settings.js:115
+#: assets/src/settings.js:97
 msgid "Creating…"
 msgstr ""
 
-#: assets/src/settings.js:124
+#: assets/src/settings.js:106
 msgid "Failed to create collection."
 msgstr ""
 
-#: assets/src/settings.js:136
+#: assets/src/settings.js:118
 msgid "Saved"
 msgstr ""
 
-#: assets/src/settings.js:138
+#: assets/src/settings.js:120
 msgid "Saving…"
 msgstr ""
 
-#: assets/src/settings.js:143
+#: assets/src/settings.js:125
 msgid "Failed to save the category mapping."
 msgstr ""
 

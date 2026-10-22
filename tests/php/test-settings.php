@@ -153,44 +153,6 @@ class Test_Settings extends Tokenize_Test_Case {
 		delete_option( Settings::OPTION_AI_POLICY_DEFAULT );
 	}
 
-	public function test_save_collection_label_stores_it_and_makes_it_the_default_when_none_exists() {
-		delete_option( Settings::OPTION_COLLECTION_LABELS );
-		delete_option( Settings::OPTION_COLLECTION );
-
-		Settings::save_collection_label( '0xaaa', 'General' );
-
-		$this->assertSame( array( '0xaaa' => 'General' ), Settings::get_collection_labels() );
-		$this->assertSame( '0xaaa', Settings::get_default_collection() );
-	}
-
-	public function test_save_collection_label_does_not_change_the_default_once_one_is_already_set() {
-		delete_option( Settings::OPTION_COLLECTION_LABELS );
-		delete_option( Settings::OPTION_COLLECTION );
-		Settings::save_collection_label( '0xaaa', 'General' );
-		Settings::save_collection_label( '0xbbb', 'News' );
-
-		$this->assertSame( '0xaaa', Settings::get_default_collection() );
-		$this->assertCount( 2, Settings::get_collection_labels() );
-	}
-
-	public function test_saving_an_empty_label_removes_it_and_does_not_make_it_the_default() {
-		delete_option( Settings::OPTION_COLLECTION );
-		Settings::save_collection_label( '0xaaa', 'General' );
-		Settings::set_default_collection( '0xbbb' );
-		Settings::save_collection_label( '0xaaa', '' );
-
-		$this->assertSame( array(), Settings::get_collection_labels() );
-		$this->assertSame( '', Settings::stored_label( '0xaaa' ) );
-		$this->assertSame( '0xbbb', Settings::get_default_collection() );
-	}
-
-	public function test_the_stored_label_is_found_whatever_the_address_formatting() {
-		Settings::save_collection_label( '0x00aaa', 'General' );
-
-		$this->assertSame( 'General', Settings::stored_label( '0xAAA' ) );
-		$this->assertSame( '', Settings::stored_label( '0xbbb' ) );
-	}
-
 	public function test_the_effective_default_is_the_saved_one_else_the_first_collection() {
 		$live = array(
 			array( 'contract' => '0xaaa', 'collectionId' => '1', 'label' => 'A' ),
@@ -204,14 +166,14 @@ class Test_Settings extends Tokenize_Test_Case {
 		$this->assertNull( Settings::effective_default( array() ) );
 	}
 
-	public function test_the_collections_table_offers_a_label_field_and_a_default_button_per_collection() {
+	public function test_the_collections_table_shows_each_collection_s_name_and_a_default_button() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 		update_option( Settings::OPTION_API_KEY, 'test-key' );
 		Settings::save_wallet_address( '0xbeef01' );
 		add_filter( 'pre_http_request', function () {
 			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array(
-				array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721' ),
-				array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721' ),
+				array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721', 'name' => 'Politics' ),
+				array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721', 'name' => 'Archive' ),
 			) ) ) );
 		} );
 		delete_option( Settings::OPTION_COLLECTION );
@@ -221,17 +183,11 @@ class Test_Settings extends Tokenize_Test_Case {
 		$html = ob_get_clean();
 		remove_all_filters( 'pre_http_request' );
 
-		$this->assertSame( 2, substr_count( $html, 'tokenize-content-collection-label' ) );
+		$this->assertStringContainsString( '<td>Politics</td>', $html );
+		$this->assertStringContainsString( '<td>Archive</td>', $html );
+		$this->assertStringNotContainsString( 'tokenize-content-collection-label', $html );
 		$this->assertSame( 1, substr_count( $html, 'tokenize-content-collection-default' ) );
 		$this->assertStringContainsString( 'id="tokenize-content-credits"', $html );
-	}
-
-	public function test_save_collection_label_overwrites_the_label_for_an_existing_contract() {
-		delete_option( Settings::OPTION_COLLECTION_LABELS );
-		Settings::save_collection_label( '0xaaa', 'General' );
-		Settings::save_collection_label( '0xaaa', 'General (renamed)' );
-
-		$this->assertSame( array( '0xaaa' => 'General (renamed)' ), Settings::get_collection_labels() );
 	}
 
 	public function test_fetch_live_collections_returns_nothing_without_an_api_key_or_wallet() {
@@ -240,28 +196,26 @@ class Test_Settings extends Tokenize_Test_Case {
 		$this->assertSame( array(), Settings::fetch_live_collections() );
 	}
 
-	public function test_fetch_live_collections_reads_the_backend_s_real_field_and_merges_the_stored_label() {
+	public function test_fetch_live_collections_labels_each_collection_with_its_on_chain_name_else_its_address() {
 		update_option( Settings::OPTION_API_KEY, 'test-key' );
 		Settings::save_wallet_address( '0xbeef01' );
-		delete_option( Settings::OPTION_COLLECTION_LABELS );
-		Settings::save_collection_label( '0xaaa', 'General' );
 
 		add_filter( 'pre_http_request', function () {
 			return array(
 				'response' => array( 'code' => 200 ),
 				'body'     => wp_json_encode( array( 'data' => array(
-					array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721' ),
-					array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721' ),
+					array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721', 'name' => ' General ' ),
+					array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721', 'name' => null ),
+					array( 'contractAddress' => '0xccc', 'collectionId' => '3', 'service' => 'mip-erc721' ),
 				) ) ),
 			);
 		} );
 
-		$collections = Settings::fetch_live_collections();
-
 		$this->assertSame( array(
 			array( 'contract' => '0xaaa', 'collectionId' => '1', 'label' => 'General' ),
 			array( 'contract' => '0xbbb', 'collectionId' => '2', 'label' => '0xbbb' ),
-		), $collections );
+			array( 'contract' => '0xccc', 'collectionId' => '3', 'label' => '0xccc' ),
+		), Settings::fetch_live_collections() );
 	}
 
 	public function test_resolve_collection_for_post_uses_the_category_map_when_the_mapped_collection_is_real() {
@@ -282,7 +236,7 @@ class Test_Settings extends Tokenize_Test_Case {
 	public function test_resolve_collection_for_post_falls_back_to_the_default_collection() {
 		delete_option( Settings::OPTION_COLLECTION );
 		delete_option( Settings::OPTION_CATEGORY_MAP );
-		Settings::save_collection_label( '0xdefa01', 'Default' );
+		Settings::set_default_collection( '0xdefa01' );
 		$live    = array( array( 'contract' => '0xdefa01', 'label' => 'Default' ) );
 		$post_id = $this->factory->post->create();
 
@@ -322,19 +276,6 @@ class Test_Settings extends Tokenize_Test_Case {
 		$live = array( array( 'contract' => '0xaaa11', 'label' => 'First' ), array( 'contract' => '0x0000DEFA01', 'label' => 'Default' ) );
 
 		$this->assertSame( '0x0000DEFA01', Settings::resolve_collection_for_post( $this->factory->post->create(), $live )['contract'] );
-	}
-
-	public function test_fetch_live_collections_finds_the_label_across_address_formats() {
-		update_option( Settings::OPTION_API_KEY, 'test-key' );
-		Settings::save_wallet_address( '0xbeef01' );
-		delete_option( Settings::OPTION_COLLECTION_LABELS );
-		Settings::save_collection_label( '0xaaa', 'General' );
-
-		add_filter( 'pre_http_request', function () {
-			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0x000AAA', 'collectionId' => '5', 'service' => 'mip-erc721' ) ) ) ) );
-		} );
-
-		$this->assertSame( array( array( 'contract' => '0x000AAA', 'collectionId' => '5', 'label' => 'General' ) ), Settings::fetch_live_collections() );
 	}
 
 	public function test_checked_fetch_returns_an_error_when_the_request_fails() {
@@ -419,18 +360,6 @@ class Test_Settings extends Tokenize_Test_Case {
 		Settings::fetch_live_collections();
 
 		$this->assertSame( 1, $calls );
-	}
-
-	public function test_saving_a_collection_label_makes_the_next_lookup_fresh() {
-		$this->configured();
-		$this->backend_returns( array( array( 'contractAddress' => '0xaaa', 'collectionId' => '7', 'service' => 'mip-erc721' ) ), $calls );
-		Settings::fetch_live_collections();
-
-		Settings::save_collection_label( '0xaaa', 'General' );
-		$collections = Settings::fetch_live_collections();
-
-		$this->assertSame( 2, $calls );
-		$this->assertSame( 'General', $collections[0]['label'] );
 	}
 
 	public function test_a_failed_lookup_is_not_remembered() {

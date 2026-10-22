@@ -43,7 +43,7 @@ Every request the plugin makes is paid from the credits of the Medialane account
 == Changelog ==
 
 = 0.3.1 =
-* Rename collections and choose the default collection from the settings page.
+* Collections show their on-chain name, and you can choose the default collection from the settings page.
 * The settings page shows the credit balance and tells you when the API key is not accepted.
 * A Tokenized column on the Posts list links each post to its asset page.
 * Tokenized posts link to their asset page from the editor.

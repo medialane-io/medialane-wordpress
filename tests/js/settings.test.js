@@ -11,14 +11,13 @@ vi.mock("../../assets/src/api.js", () => ({
   createCollectionIntent: vi.fn().mockResolvedValue({ data: { id: "intent-9", requiresSignature: false, calls: [{ contractAddress: "0xfactory" }] } }),
   syncCollectionTx: vi.fn().mockResolvedValue({}),
   getCollectionsByOwner: vi.fn(),
-  saveCollectionEntry: vi.fn().mockResolvedValue({ labels: {} }),
   saveCategoryMap: vi.fn().mockResolvedValue({ map: {} }),
   saveWalletAddress: vi.fn().mockResolvedValue({ address: "0xowner" }),
   getAccount: vi.fn(),
   saveDefaultCollection: vi.fn().mockResolvedValue({}),
 }));
 
-const { pollForNewCollection, createAndRegisterCollection, collectCategoryMap, creditsText } = await import("../../assets/src/settings.js");
+const { pollForNewCollection, createCollection, collectCategoryMap, creditsText } = await import("../../assets/src/settings.js");
 
 describe("pollForNewCollection", () => {
   const listing = (...contracts) => ({ data: contracts.map((contractAddress, i) => ({ contractAddress, collectionId: String(i + 1) })) });
@@ -65,29 +64,27 @@ describe("pollForNewCollection", () => {
   });
 });
 
-describe("createAndRegisterCollection", () => {
+describe("createCollection", () => {
   beforeEach(async () => {
-    const { getCollectionsByOwner, createCollectionIntent, saveCollectionEntry } = await import("../../assets/src/api.js");
+    const { getCollectionsByOwner, createCollectionIntent } = await import("../../assets/src/api.js");
     const { sponsor } = await import("../../assets/src/sponsor.js");
     getCollectionsByOwner.mockReset();
     createCollectionIntent.mockClear();
-    saveCollectionEntry.mockClear();
     sponsor.mockClear();
   });
 
-  it("labels the newly created collection, not an older one that is listed first", async () => {
-    const { getCollectionsByOwner, createCollectionIntent, saveCollectionEntry } = await import("../../assets/src/api.js");
+  it("returns the newly created collection, not an older one that is listed first", async () => {
+    const { getCollectionsByOwner, createCollectionIntent } = await import("../../assets/src/api.js");
     const { sponsor } = await import("../../assets/src/sponsor.js");
     getCollectionsByOwner
       .mockResolvedValueOnce({ data: [{ contractAddress: "0xold", collectionId: "1" }] })
       .mockResolvedValueOnce({ data: [{ contractAddress: "0xold", collectionId: "1" }] })
       .mockResolvedValue({ data: [{ contractAddress: "0xnew", collectionId: "2" }, { contractAddress: "0xold", collectionId: "1" }] });
 
-    const contract = await createAndRegisterCollection("0xowner", {}, "Politics", { intervalMs: 0 });
+    const contract = await createCollection("0xowner", {}, "Politics", { intervalMs: 0 });
 
     expect(createCollectionIntent).toHaveBeenCalledWith(expect.objectContaining({ owner: "0xowner", name: "Politics" }));
     expect(sponsor).toHaveBeenCalledWith({}, "0xowner", ["intent-9"]);
-    expect(saveCollectionEntry).toHaveBeenCalledWith({ contract: "0xnew", label: "Politics" });
     expect(contract).toBe("0xnew");
   });
 
@@ -97,7 +94,7 @@ describe("createAndRegisterCollection", () => {
     getCollectionsByOwner.mockResolvedValue({ data: [{ contractAddress: "0xnew", collectionId: "2" }] });
     getCollectionsByOwner.mockResolvedValueOnce({ data: [] });
 
-    await createAndRegisterCollection("0xowner", {}, "Politics", { intervalMs: 0 });
+    await createCollection("0xowner", {}, "Politics", { intervalMs: 0 });
 
     expect(waitForConfirmation).toHaveBeenCalledWith("0xtx");
     expect(syncCollectionTx).toHaveBeenCalledWith("0xtx");
@@ -108,19 +105,18 @@ describe("createAndRegisterCollection", () => {
     const { sponsor } = await import("../../assets/src/sponsor.js");
     getCollectionsByOwner.mockRejectedValue(new Error("upstream down"));
 
-    await expect(createAndRegisterCollection("0xowner", {}, "Politics", { intervalMs: 0 })).rejects.toThrow("upstream down");
+    await expect(createCollection("0xowner", {}, "Politics", { intervalMs: 0 })).rejects.toThrow("upstream down");
     expect(createCollectionIntent).not.toHaveBeenCalled();
     expect(sponsor).not.toHaveBeenCalled();
   });
 
-  it("saves no label when the new collection never shows up", async () => {
-    const { getCollectionsByOwner, saveCollectionEntry } = await import("../../assets/src/api.js");
+  it("returns nothing when the new collection never shows up", async () => {
+    const { getCollectionsByOwner } = await import("../../assets/src/api.js");
     getCollectionsByOwner.mockResolvedValue({ data: [{ contractAddress: "0xold", collectionId: "1" }] });
 
-    const contract = await createAndRegisterCollection("0xowner", {}, "Politics", { attempts: 2, intervalMs: 0 });
+    const contract = await createCollection("0xowner", {}, "Politics", { attempts: 2, intervalMs: 0 });
 
     expect(contract).toBeNull();
-    expect(saveCollectionEntry).not.toHaveBeenCalled();
   });
 });
 

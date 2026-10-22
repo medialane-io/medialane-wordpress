@@ -66,7 +66,6 @@ describe("api client", () => {
     ["getTokenizeData", () => api.getTokenizeData(["1", "2"]), "/tokenize-data", { ids: ["1", "2"] }],
     ["saveCategoryMap", () => api.saveCategoryMap({ 2: "0xa" }), "/settings/category-map", { map: { 2: "0xa" } }],
     ["saveWalletAddress", () => api.saveWalletAddress("0xabc"), "/settings/wallet", { address: "0xabc" }],
-    ["saveCollectionEntry", () => api.saveCollectionEntry({ contract: "0xa", label: "News" }), "/settings/collections", { contract: "0xa", label: "News" }],
     ["syncCollectionTx", () => api.syncCollectionTx("0xhash"), "/collections/sync-tx", { txHash: "0xhash" }],
     ["createCollectionIntent", () => api.createCollectionIntent({ owner: "0x1", name: "News", symbol: "POST" }), "/intents/create-collection", { owner: "0x1", name: "News", symbol: "POST" }],
   ])("%s posts to the right route with the right body", async (_name, call, path, expected) => {
@@ -131,7 +130,7 @@ describe("api client", () => {
   });
 
   it("exports nothing the plugin does not call", () => {
-    for (const removed of ["getToken", "saveCollectionContract", "buildSponsoredDeploy", "uploadFile"]) {
+    for (const removed of ["getToken", "saveCollectionContract", "buildSponsoredDeploy", "uploadFile", "saveCollectionEntry"]) {
       expect(api[removed]).toBeUndefined();
     }
   });

@@ -64,7 +64,6 @@ export const syncCollectionTx = (txHash) => post("/collections/sync-tx", { txHas
 export const getCollectionsByOwner = (owner) => request(`/collections?owner=${encodeURIComponent(owner)}`, { method: "GET" });
 export const getAccount = () => request("/account", { method: "GET" });
 export const saveDefaultCollection = (contract) => post("/settings/default-collection", { contract });
-export const saveCollectionEntry = ({ contract, label }) => post("/settings/collections", { contract, label });
 export const saveCategoryMap = (map) => post("/settings/category-map", { map });
 export const saveWalletAddress = (address) => post("/settings/wallet", { address });
 

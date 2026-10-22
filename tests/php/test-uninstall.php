@@ -19,7 +19,7 @@ class Test_Uninstall extends Tokenize_Test_Case {
 		foreach ( $this->option_names() as $option ) {
 			update_option( $option, 'value' );
 		}
-		update_option( Settings::OPTION_COLLECTION_LABELS, array( '0xaaa' => 'General' ) );
+		update_option( Settings::LEGACY_COLLECTION_LABELS, array( '0xaaa' => 'General' ) );
 		update_option( Settings::OPTION_CATEGORY_MAP, array( 3 => '0xaaa' ) );
 	}
 
@@ -31,6 +31,15 @@ class Test_Uninstall extends Tokenize_Test_Case {
 		foreach ( $this->option_names() as $name => $option ) {
 			$this->assertFalse( get_option( $option ), $name );
 		}
+		$this->assertFalse( get_option( Settings::LEGACY_COLLECTION_LABELS ) );
+	}
+
+	public function test_stored_collection_labels_from_earlier_versions_are_removed_on_the_next_admin_load() {
+		update_option( Settings::LEGACY_COLLECTION_LABELS, array( '0xaaa' => 'General' ) );
+
+		Settings::register_settings();
+
+		$this->assertFalse( get_option( Settings::LEGACY_COLLECTION_LABELS ) );
 	}
 
 	public function test_uninstall_removes_the_tokenize_capability_from_every_role() {
