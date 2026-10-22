@@ -54,7 +54,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 
 		remove_filter( 'pre_http_request', $intercept, 10 );
 
-		$this->assertStringEndsWith( '/v1/intents/mint', $captured_url );
+		$this->assertSame( 'https://backend.test/v1/intents/mint', $captured_url );
 	}
 
 	public function test_the_metadata_upload_forwards_the_standard_fields_and_nothing_else() {
@@ -72,6 +72,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		add_filter( 'pre_http_request', $intercept, 10, 2 );
 
 		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/metadata/upload' );
+		$request->set_header( 'content-type', 'application/json' );
 		$request->set_body( wp_json_encode( array(
 			'name'         => 'A Post',
 			'description'  => 'Short',
@@ -271,6 +272,7 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		return array(
 			'contract'  => array( array_merge( $good, array( 'contract' => 'javascript:alert(1)' ) ) ),
 			'token id'  => array( array_merge( $good, array( 'tokenId' => 'abc' ) ) ),
+			'empty token id' => array( array_merge( $good, array( 'tokenId' => '' ) ) ),
 			'tx hash'   => array( array_merge( $good, array( 'txHash' => 'not-a-hash' ) ) ),
 		);
 	}
@@ -408,6 +410,56 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertArrayNotHasKey( 'description', $post );
 		$this->assertArrayNotHasKey( 'content', $post );
 		$this->assertStringNotContainsString( 'Private draft text', wp_json_encode( $post ) );
+	}
+
+	public function test_tokenize_data_marks_an_already_tokenized_post_with_an_error_and_no_content() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => 'Body' ) );
+		\TokenizeContent\PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
+
+		$this->assertSame( 'This post is already tokenized.', $post['error'] );
+		$this->assertArrayNotHasKey( 'content', $post );
+	}
+
+	public function test_starting_a_mint_on_an_already_tokenized_post_is_refused() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		\TokenizeContent\PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/minting" ) );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'minted', \TokenizeContent\PostMeta::get_status( $post_id ) );
+	}
+
+	public function test_tokenize_data_refuses_a_post_too_long_to_tokenize_in_full() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$long = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<p>' . str_repeat( 'word ', 120000 ) . '</p>' ) );
+		$short = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<p>' . str_repeat( 'word ', 20000 ) . '</p>' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $long, $short ) ) );
+		$posts = $this->server->dispatch( $request )->get_data()['posts'];
+
+		$this->assertArrayHasKey( 'error', $posts[ $long ] );
+		$this->assertArrayNotHasKey( 'content', $posts[ $long ] );
+		$this->assertArrayNotHasKey( 'error', $posts[ $short ] );
+	}
+
+	public function test_a_long_post_is_tokenized_when_the_scope_is_excerpt() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_CONTENT_SCOPE, 'excerpt' );
+		$long = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<p>' . str_repeat( 'word ', 120000 ) . '</p>' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $long ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $long ];
+
+		$this->assertArrayNotHasKey( 'error', $post );
 	}
 
 	public function test_starting_a_mint_on_an_ineligible_post_is_refused() {

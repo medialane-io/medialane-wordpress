@@ -18,7 +18,9 @@ $tokenize_content_header = get_file_data( __FILE__, array( 'Version' => 'Version
 define( 'TOKENIZE_CONTENT_PLUGIN_VERSION', $tokenize_content_header['Version'] );
 define( 'TOKENIZE_CONTENT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TOKENIZE_CONTENT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'TOKENIZE_CONTENT_BACKEND_URL', 'https://api.medialane.io' );
+if ( ! defined( 'TOKENIZE_CONTENT_BACKEND_URL' ) ) {
+	define( 'TOKENIZE_CONTENT_BACKEND_URL', 'https://api.medialane.io' );
+}
 
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-post-meta.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-eligibility.php';

@@ -260,8 +260,8 @@ class Settings {
 	}
 
 	public static function get_license_default(): string {
-		$license = get_option( self::OPTION_LICENSE_DEFAULT, '' );
-		return $license ? (string) $license : 'All Rights Reserved';
+		$license = (string) get_option( self::OPTION_LICENSE_DEFAULT, '' );
+		return isset( self::LICENSES[ $license ] ) && self::LICENSES[ $license ] ? $license : 'All Rights Reserved';
 	}
 
 	public static function get_ai_policy_default(): string {

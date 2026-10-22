@@ -70,6 +70,19 @@ class Test_Settings extends Tokenize_Test_Case {
 		$this->assertStringContainsString( "name='option_page' value='tokenize-content-defaults'", $html );
 	}
 
+	public function test_the_default_license_choices_all_carry_terms() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+
+		ob_start();
+		\TokenizeContent\SettingsPage::render();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( '<option value="CC BY-SA"', $html );
+		$this->assertStringNotContainsString( '<option value="Custom"', $html );
+	}
+
 	public function test_settings_page_html_never_contains_the_saved_key() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 		update_option( Settings::OPTION_API_KEY, 'SECRET-OPTION-KEY' );
@@ -113,6 +126,14 @@ class Test_Settings extends Tokenize_Test_Case {
 	public function test_get_license_default_falls_back_to_all_rights_reserved() {
 		delete_option( Settings::OPTION_LICENSE_DEFAULT );
 		$this->assertSame( 'All Rights Reserved', Settings::get_license_default() );
+	}
+
+	public function test_get_license_default_ignores_a_stored_value_that_has_no_terms() {
+		foreach ( array( 'Custom', 'Anything' ) as $stored ) {
+			update_option( Settings::OPTION_LICENSE_DEFAULT, $stored );
+			$this->assertSame( 'All Rights Reserved', Settings::get_license_default(), $stored );
+		}
+		delete_option( Settings::OPTION_LICENSE_DEFAULT );
 	}
 
 	public function test_get_license_default_reads_the_saved_option() {

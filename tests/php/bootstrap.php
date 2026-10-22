@@ -6,6 +6,7 @@ if ( ! $_tests_dir ) {
 require_once $_tests_dir . '/includes/functions.php';
 
 function _tokenize_content_manually_load_plugin() {
+	define( 'TOKENIZE_CONTENT_BACKEND_URL', 'https://backend.test' );
 	require dirname( dirname( __DIR__ ) ) . '/tokenize-content.php';
 }
 tests_add_filter( 'muplugins_loaded', '_tokenize_content_manually_load_plugin' );
