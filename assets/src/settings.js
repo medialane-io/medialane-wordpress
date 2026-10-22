@@ -1,4 +1,5 @@
-import { connectWallet, executeCalls } from "./wallet.js";
+import { connectWallet, waitForConfirmation } from "./wallet.js";
+import { sponsor } from "./sponsor.js";
 import { assertSiteWallet, sameAddress } from "./site-wallet.js";
 import { __ } from "@wordpress/i18n";
 import {
@@ -20,7 +21,8 @@ export async function createAndRegisterCollection(address, account, label, polli
   const existing = ((await getCollectionsByOwner(address)).data || []).map((c) => c.contractAddress);
 
   const intentRes = await createCollectionIntent({ owner: address, name: label, symbol: "POST" });
-  const txHash = await executeCalls(account, intentRes.data && intentRes.data.calls);
+  const { transactionHash: txHash } = await sponsor(account, address, [intentRes.data.id]);
+  await waitForConfirmation(txHash);
   await syncCollectionTx(txHash).catch((err) => console.warn("Medialane: eager tx sync failed", err));
 
   const contract = await pollForNewCollection(address, existing, polling);

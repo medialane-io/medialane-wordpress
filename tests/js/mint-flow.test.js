@@ -235,8 +235,38 @@ describe("executeMintBatch", () => {
     const results = await run();
 
     expect(api.markError).not.toHaveBeenCalled();
-    expect(results[0]).toEqual({ postId: 1, txHash: "0xtx", error: "Minted on chain, but this site could not save it. Use Check status on the post." });
+    expect(results[0]).toEqual({ postId: 1, txHash: "0xtx", error: "Minted on chain, but this site could not save it. Transaction: 0xtx" });
     expect(results[1]).toEqual({ postId: 2, txHash: "0xtx" });
+  });
+});
+
+describe("a confirmed transaction that minted nothing for a post", () => {
+  const entries = [
+    { postId: 1, license: "CC BY-SA", intentId: "i1" },
+    { postId: 2, license: "CC BY-SA", intentId: "i2" },
+  ];
+
+  it("marks that post errored with the transaction and never stores an empty token id", async () => {
+    wallet.mintedTokenIdsFromReceipt.mockReturnValue(["101"]);
+
+    const results = await executeMintBatch({ account: {}, address: "0xowner", collectionContract: "0xcol", entries });
+
+    expect(results).toEqual([
+      { postId: 1, txHash: "0xtx" },
+      { postId: 2, txHash: "0xtx", error: "Transaction 0xtx did not mint this post." },
+    ]);
+    expect(api.markMinted).toHaveBeenCalledTimes(1);
+    expect(api.markMinted).not.toHaveBeenCalledWith(2, expect.anything());
+    expect(api.markError).toHaveBeenCalledWith(2, "Transaction 0xtx did not mint this post.");
+  });
+
+  it("does the same when resuming a recorded transaction", async () => {
+    wallet.mintedTokenIdsFromReceipt.mockReturnValue([]);
+
+    await expect(resumeMint({ postId: 2, txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 1 }))
+      .resolves.toEqual({ postId: 2, txHash: "0xtx", error: "Transaction 0xtx did not mint this post." });
+    expect(api.markMinted).not.toHaveBeenCalled();
+    expect(api.markError).toHaveBeenCalledWith(2, "Transaction 0xtx did not mint this post.");
   });
 });
 
@@ -259,7 +289,7 @@ describe("resumeMint", () => {
   it("does not mark a confirmed mint errored when saving it fails", async () => {
     api.markMinted.mockRejectedValue(new Error("network down"));
 
-    await expect(resumeMint(job)).resolves.toEqual({ postId: 2, txHash: "0xtx", error: "Minted on chain, but this site could not save it. Use Check status on the post." });
+    await expect(resumeMint(job)).resolves.toEqual({ postId: 2, txHash: "0xtx", error: "Minted on chain, but this site could not save it. Transaction: 0xtx" });
     expect(api.markError).not.toHaveBeenCalled();
   });
 });
