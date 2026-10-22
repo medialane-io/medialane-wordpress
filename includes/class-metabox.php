@@ -24,6 +24,10 @@ class Metabox {
 			<div class="tokenize-content-metabox-body">
 				<?php if ( PostMeta::STATUS_MINTED === $status ) : ?>
 					<p><?php esc_html_e( 'Minted', 'tokenize-content' ); ?></p>
+					<?php $asset_url = AssetBadge::url_for_post( $post->ID ); ?>
+					<?php if ( $asset_url ) : ?>
+						<p><a href="<?php echo esc_url( $asset_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View on Medialane', 'tokenize-content' ); ?></a></p>
+					<?php endif; ?>
 					<p><a href="https://voyager.online/tx/<?php echo esc_attr( get_post_meta( $post->ID, PostMeta::KEY_TX_HASH, true ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View transaction', 'tokenize-content' ); ?></a></p>
 				<?php elseif ( PostMeta::STATUS_MINTING === $status && PostMeta::get_tx_hash( $post->ID ) ) : ?>
 					<p><?php esc_html_e( 'In progress', 'tokenize-content' ); ?></p>

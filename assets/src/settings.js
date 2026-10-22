@@ -4,7 +4,7 @@ import { assertSiteWallet, sameAddress } from "./site-wallet.js";
 import { __ } from "@wordpress/i18n";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
-  saveCollectionEntry, saveCategoryMap, saveWalletAddress,
+  saveCollectionEntry, saveCategoryMap, saveWalletAddress, getAccount, saveDefaultCollection,
 } from "./api.js";
 
 export async function pollForNewCollection(owner, known, { attempts = 10, intervalMs = 3000 } = {}) {
@@ -32,6 +32,17 @@ export async function createAndRegisterCollection(address, account, label, polli
   return contract;
 }
 
+export async function creditsText() {
+  try {
+    const { data } = await getAccount();
+    return Number(data.creditBalance).toLocaleString();
+  } catch (err) {
+    if (err.status === 401) return __("The API key was not accepted. Check it at portal.medialane.io/account.", "tokenize-content");
+    if (err.status === 402) return __("No credits left. Add credits at portal.medialane.io/account.", "tokenize-content");
+    return err.message || __("Could not check the account right now.", "tokenize-content");
+  }
+}
+
 export function collectCategoryMap(rows) {
   const map = {};
   for (const row of rows) {
@@ -55,6 +66,40 @@ document.addEventListener("DOMContentLoaded", () => {
       button.textContent = __("Connect Wallet", "tokenize-content");
       alert(err.message || __("Failed to connect wallet.", "tokenize-content"));
     }
+  });
+
+  const credits = document.getElementById("tokenize-content-credits");
+  if (credits) {
+    creditsText().then((text) => {
+      credits.textContent = text;
+    });
+  }
+
+  document.querySelectorAll(".tokenize-content-collection-save").forEach((saveBtn) => {
+    saveBtn.addEventListener("click", async () => {
+      const input = Array.from(document.querySelectorAll(".tokenize-content-collection-label")).find((el) => el.dataset.contract === saveBtn.dataset.contract);
+      saveBtn.disabled = true;
+      try {
+        await saveCollectionEntry({ contract: saveBtn.dataset.contract, label: input.value.trim() });
+        location.reload();
+      } catch (err) {
+        saveBtn.disabled = false;
+        alert(err.message || __("Failed to save the collection label.", "tokenize-content"));
+      }
+    });
+  });
+
+  document.querySelectorAll(".tokenize-content-collection-default").forEach((defaultBtn) => {
+    defaultBtn.addEventListener("click", async () => {
+      defaultBtn.disabled = true;
+      try {
+        await saveDefaultCollection(defaultBtn.dataset.contract);
+        location.reload();
+      } catch (err) {
+        defaultBtn.disabled = false;
+        alert(err.message || __("Failed to set the default collection.", "tokenize-content"));
+      }
+    });
   });
 
   const createCollectionBtn = document.getElementById("tokenize-content-create-collection");

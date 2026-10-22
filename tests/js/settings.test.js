@@ -14,9 +14,11 @@ vi.mock("../../assets/src/api.js", () => ({
   saveCollectionEntry: vi.fn().mockResolvedValue({ labels: {} }),
   saveCategoryMap: vi.fn().mockResolvedValue({ map: {} }),
   saveWalletAddress: vi.fn().mockResolvedValue({ address: "0xowner" }),
+  getAccount: vi.fn(),
+  saveDefaultCollection: vi.fn().mockResolvedValue({}),
 }));
 
-const { pollForNewCollection, createAndRegisterCollection, collectCategoryMap } = await import("../../assets/src/settings.js");
+const { pollForNewCollection, createAndRegisterCollection, collectCategoryMap, creditsText } = await import("../../assets/src/settings.js");
 
 describe("pollForNewCollection", () => {
   const listing = (...contracts) => ({ data: contracts.map((contractAddress, i) => ({ contractAddress, collectionId: String(i + 1) })) });
@@ -130,5 +132,37 @@ describe("collectCategoryMap", () => {
       { categoryId: "5", value: "0xsports" },
     ];
     expect(collectCategoryMap(rows)).toEqual({ 3: "0xnews", 5: "0xsports" });
+  });
+});
+
+describe("creditsText", () => {
+  const failWith = async (status) => {
+    const { getAccount } = await import("../../assets/src/api.js");
+    getAccount.mockReset().mockRejectedValue(Object.assign(new Error("backend said no"), { status }));
+  };
+
+  it("shows the credit balance", async () => {
+    const { getAccount } = await import("../../assets/src/api.js");
+    getAccount.mockReset().mockResolvedValue({ data: { creditBalance: 12500 } });
+
+    expect(await creditsText()).toBe((12500).toLocaleString());
+  });
+
+  it("says when the API key was not accepted", async () => {
+    await failWith(401);
+
+    expect(await creditsText()).toContain("API key was not accepted");
+  });
+
+  it("says when there are no credits left", async () => {
+    await failWith(402);
+
+    expect(await creditsText()).toContain("No credits left");
+  });
+
+  it("falls back to the error message for anything else", async () => {
+    await failWith(502);
+
+    expect(await creditsText()).toBe("backend said no");
   });
 });

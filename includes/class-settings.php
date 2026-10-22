@@ -138,13 +138,26 @@ class Settings {
 		$label    = sanitize_text_field( $label );
 		$labels   = self::get_collection_labels();
 
-		$labels[ $contract ] = $label;
+		if ( '' === $label ) {
+			unset( $labels[ $contract ] );
+		} else {
+			$labels[ $contract ] = $label;
+		}
 		update_option( self::OPTION_COLLECTION_LABELS, $labels );
 		self::forget_collections();
 
-		if ( ! self::get_default_collection() ) {
+		if ( '' !== $label && ! self::get_default_collection() ) {
 			self::set_default_collection( $contract );
 		}
+	}
+
+	public static function stored_label( string $contract ): string {
+		foreach ( self::get_collection_labels() as $stored => $label ) {
+			if ( self::same_address( (string) $stored, $contract ) ) {
+				return (string) $label;
+			}
+		}
+		return '';
 	}
 
 	public static function collections_url( string $owner ): string {
@@ -246,11 +259,15 @@ class Settings {
 			}
 		}
 
-		$default = $find( self::get_default_collection() );
-		if ( $default ) {
-			return $default;
-		}
+		return self::effective_default( $live_collections );
+	}
 
+	public static function effective_default( array $live_collections ): ?array {
+		foreach ( $live_collections as $collection ) {
+			if ( self::same_address( self::get_default_collection(), $collection['contract'] ) ) {
+				return $collection;
+			}
+		}
 		return $live_collections ? $live_collections[0] : null;
 	}
 

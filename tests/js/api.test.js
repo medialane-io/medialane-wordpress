@@ -113,6 +113,19 @@ describe("api client", () => {
     expect(lastCall(fetchMock).opts.method).toBe("GET");
   });
 
+  it("reads the account through the site's own proxy", async () => {
+    const fetchMock = respond({ data: { creditBalance: 12 } });
+    await api.getAccount();
+    expect(lastCall(fetchMock).url).toBe("/wp-json/tokenize-content/v1/account");
+    expect(lastCall(fetchMock).opts.method).toBe("GET");
+  });
+
+  it("saves the default collection by contract", async () => {
+    const fetchMock = respond({ default: "0xabc" });
+    await api.saveDefaultCollection("0xabc");
+    expect(lastCall(fetchMock)).toMatchObject({ url: "/wp-json/tokenize-content/v1/settings/default-collection", body: { contract: "0xabc" } });
+  });
+
   it("points the RPC provider at the site's own proxy", () => {
     expect(api.rpcConfig()).toEqual({ nodeUrl: "/wp-json/tokenize-content/v1/rpc", headers: { "X-WP-Nonce": "abc" } });
   });

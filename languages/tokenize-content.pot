@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Tokenize, Protect & License Your Content 0.3.0\n"
+"Project-Id-Version: Tokenize, Protect & License Your Content 0.3.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/tokenize-content\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-22T16:05:44+00:00\n"
+"POT-Creation-Date: 2026-10-22T21:15:58+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: tokenize-content\n"
@@ -17,7 +17,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: tokenize-content.php
 #: includes/class-settings-page.php:20
-#: includes/class-settings-page.php:84
+#: includes/class-settings-page.php:85
 msgid "Tokenize, Protect & License Your Content"
 msgstr ""
 
@@ -36,11 +36,11 @@ msgstr ""
 msgid "Medialane"
 msgstr ""
 
-#: includes/class-asset-badge.php:45
+#: includes/class-asset-badge.php:52
 msgid "IP Protected & Tokenized"
 msgstr ""
 
-#: includes/class-asset-badge.php:51
+#: includes/class-asset-badge.php:58
 msgid "View this asset on Medialane"
 msgstr ""
 
@@ -73,71 +73,92 @@ msgstr ""
 msgid "Minted"
 msgstr ""
 
-#: includes/class-metabox.php:27
+#: includes/class-metabox.php:29
+#: includes/class-posts-column.php:33
+msgid "View on Medialane"
+msgstr ""
+
+#: includes/class-metabox.php:31
 msgid "View transaction"
 msgstr ""
 
-#: includes/class-metabox.php:29
+#: includes/class-metabox.php:33
+#: includes/class-posts-column.php:39
 msgid "In progress"
 msgstr ""
 
-#: includes/class-metabox.php:34
+#: includes/class-metabox.php:38
 msgid "Check status"
 msgstr ""
 
-#: includes/class-metabox.php:41
-#: includes/class-settings-page.php:225
+#: includes/class-metabox.php:45
+#: includes/class-settings-page.php:243
 msgid "Collections could not be loaded right now. Reload to try again."
 msgstr ""
 
-#: includes/class-metabox.php:45
-#: includes/class-settings-page.php:255
+#: includes/class-metabox.php:49
+#: includes/class-settings-page.php:273
 msgid "Collection"
 msgstr ""
 
-#: includes/class-metabox.php:55
+#: includes/class-metabox.php:59
 msgid "License"
 msgstr ""
 
-#: includes/class-metabox.php:62
+#: includes/class-metabox.php:66
 msgid "Custom license terms (used if License = Custom)"
 msgstr ""
 
-#: includes/class-metabox.php:63
+#: includes/class-metabox.php:67
 #: assets/src/metabox.js:54
 msgid "Tokenize Post"
 msgstr ""
 
-#: includes/class-rest-proxy.php:114
-#: includes/class-rest-proxy.php:269
+#: includes/class-posts-column.php:20
+#: includes/class-posts-column.php:35
+msgid "Tokenized"
+msgstr ""
+
+#: includes/class-posts-column.php:42
+#: assets/src/bulk-action.js:82
+msgid "Failed"
+msgstr ""
+
+#: includes/class-rest-proxy.php:124
+#: includes/class-rest-proxy.php:306
 msgid "You can't tokenize a post you don't have edit access to."
 msgstr ""
 
-#: includes/class-rest-proxy.php:120
+#: includes/class-rest-proxy.php:130
+#: includes/class-rest-proxy.php:248
 msgid "Collections could not be loaded right now. Try again."
 msgstr ""
 
-#: includes/class-rest-proxy.php:139
+#: includes/class-rest-proxy.php:149
 msgid "This post is too long to tokenize in full. Switch the content setting to Excerpt."
 msgstr ""
 
-#: includes/class-rest-proxy.php:180
+#: includes/class-rest-proxy.php:190
 msgid "The transaction reference is malformed."
 msgstr ""
 
-#: includes/class-rest-proxy.php:277
+#: includes/class-rest-proxy.php:257
+msgid "That collection does not belong to the connected wallet."
+msgstr ""
+
+#: includes/class-rest-proxy.php:314
 msgid "No Medialane API key configured."
 msgstr ""
 
-#: includes/class-rest-proxy.php:330
+#: includes/class-rest-proxy.php:367
 msgid "That request is not allowed."
 msgstr ""
 
-#: includes/class-rest-proxy.php:378
+#: includes/class-rest-proxy.php:415
 msgid "The featured image file could not be read."
 msgstr ""
 
-#: includes/class-rest-proxy.php:390
+#: includes/class-rest-proxy.php:427
 msgid "Medialane backend request failed."
 msgstr ""
 
@@ -145,195 +166,213 @@ msgstr ""
 msgid "Add your API key and save it to continue setup."
 msgstr ""
 
-#: includes/class-settings-page.php:57
+#: includes/class-settings-page.php:58
 msgid "Connect the wallet that will sign every tokenize action on this site to continue setup."
 msgstr ""
 
-#: includes/class-settings-page.php:86
+#: includes/class-settings-page.php:87
 msgid "This plugin turns your posts into protected IP assets through Medialane. Each tokenized post carries a permanent, checkable record of who wrote it, plus a clear license that says what other people are allowed to do with it."
 msgstr ""
 
-#: includes/class-settings-page.php:90
+#: includes/class-settings-page.php:91
 msgid "What this does"
 msgstr ""
 
-#: includes/class-settings-page.php:92
+#: includes/class-settings-page.php:93
 msgid "Proof of authorship. A permanent, public record of who wrote a post and when, independent of this site staying online."
 msgstr ""
 
-#: includes/class-settings-page.php:93
+#: includes/class-settings-page.php:94
 msgid "Real licensing terms. Choose a Creative Commons preset or reserve all rights, plus a policy on AI training use, applied automatically when a post is tokenized."
 msgstr ""
 
-#: includes/class-settings-page.php:94
+#: includes/class-settings-page.php:95
 msgid "No wallet needed for your writers. Only the site admin connects one, once. Authors are identified by their WordPress email and never have to do anything themselves."
 msgstr ""
 
-#: includes/class-settings-page.php:95
+#: includes/class-settings-page.php:96
 msgid "A public badge on every tokenized post, linking to its permanent record so readers can verify it themselves."
 msgstr ""
 
-#: includes/class-settings-page.php:97
+#: includes/class-settings-page.php:98
 msgid "How it works"
 msgstr ""
 
-#: includes/class-settings-page.php:99
+#: includes/class-settings-page.php:100
 msgid "Add your Medialane API key below."
 msgstr ""
 
-#: includes/class-settings-page.php:100
+#: includes/class-settings-page.php:101
 msgid "Connect the wallet that will manage tokenization for this site."
 msgstr ""
 
-#: includes/class-settings-page.php:101
+#: includes/class-settings-page.php:102
 msgid "Tokenize a post from its editor screen, or several at once from the Posts list."
 msgstr ""
 
-#: includes/class-settings-page.php:111
-#: includes/class-settings-page.php:127
+#: includes/class-settings-page.php:112
+#: includes/class-settings-page.php:128
 msgid "API Key"
 msgstr ""
 
-#: includes/class-settings-page.php:115
+#: includes/class-settings-page.php:116
 #, php-format
 msgid "Generate an API key at %s, then paste it below."
 msgstr ""
 
-#: includes/class-settings-page.php:121
+#: includes/class-settings-page.php:122
 msgid "The API key is set in wp-config.php."
 msgstr ""
 
-#: includes/class-settings-page.php:128
+#: includes/class-settings-page.php:129
 msgid "A key is saved. Enter a new key to replace it."
 msgstr ""
 
-#: includes/class-settings-page.php:131
+#: includes/class-settings-page.php:132
 msgid "Save API Key"
 msgstr ""
 
-#: includes/class-settings-page.php:140
+#: includes/class-settings-page.php:141
+msgid "Credits:"
+msgstr ""
+
+#: includes/class-settings-page.php:141
+#: assets/src/metabox.js:64
+msgid "Checking…"
+msgstr ""
+
+#: includes/class-settings-page.php:148
 msgid "Wallet"
 msgstr ""
 
-#: includes/class-settings-page.php:141
+#: includes/class-settings-page.php:149
 msgid "Wallet:"
 msgstr ""
 
-#: includes/class-settings-page.php:141
+#: includes/class-settings-page.php:149
 msgid "Not connected"
 msgstr ""
 
-#: includes/class-settings-page.php:142
-#: assets/src/settings.js:55
+#: includes/class-settings-page.php:150
+#: assets/src/settings.js:66
 msgid "Connect Wallet"
 msgstr ""
 
-#: includes/class-settings-page.php:150
+#: includes/class-settings-page.php:158
 #, php-format
 msgid "Setup is complete. Head to %s to tokenize a post."
 msgstr ""
 
-#: includes/class-settings-page.php:151
+#: includes/class-settings-page.php:159
 msgid "Posts"
 msgstr ""
 
-#: includes/class-settings-page.php:159
+#: includes/class-settings-page.php:167
 msgid "Tokenization defaults"
 msgstr ""
 
-#: includes/class-settings-page.php:164
+#: includes/class-settings-page.php:172
 msgid "Post content to tokenize"
 msgstr ""
 
-#: includes/class-settings-page.php:167
+#: includes/class-settings-page.php:175
 msgid "Excerpt only"
 msgstr ""
 
-#: includes/class-settings-page.php:168
+#: includes/class-settings-page.php:176
 msgid "Full post body"
 msgstr ""
 
-#: includes/class-settings-page.php:173
+#: includes/class-settings-page.php:181
 msgid "Default license"
 msgstr ""
 
-#: includes/class-settings-page.php:180
+#: includes/class-settings-page.php:188
 msgid "Used to tokenize posts in bulk, and pre-selected when tokenizing a single post."
 msgstr ""
 
-#: includes/class-settings-page.php:184
+#: includes/class-settings-page.php:192
 msgid "Default AI policy"
 msgstr ""
 
-#: includes/class-settings-page.php:191
+#: includes/class-settings-page.php:199
 msgid "Whether AI systems may use tokenized content for training. Recorded on-chain as part of the license, alongside commercial-use and remix terms."
 msgstr ""
 
-#: includes/class-settings-page.php:204
-#: includes/class-settings-page.php:224
-#: includes/class-settings-page.php:227
+#: includes/class-settings-page.php:212
+#: includes/class-settings-page.php:242
+#: includes/class-settings-page.php:245
 msgid "Collections"
 msgstr ""
 
-#: includes/class-settings-page.php:208
+#: includes/class-settings-page.php:217
+#: includes/class-settings-page.php:226
 msgid "Label"
 msgstr ""
 
-#: includes/class-settings-page.php:209
+#: includes/class-settings-page.php:218
 msgid "Contract"
 msgstr ""
 
-#: includes/class-settings-page.php:210
+#: includes/class-settings-page.php:219
 msgid "Default"
 msgstr ""
 
-#: includes/class-settings-page.php:218
+#: includes/class-settings-page.php:227
+msgid "Save"
+msgstr ""
+
+#: includes/class-settings-page.php:232
 msgid "Yes"
 msgstr ""
 
-#: includes/class-settings-page.php:228
+#: includes/class-settings-page.php:234
+msgid "Make default"
+msgstr ""
+
+#: includes/class-settings-page.php:246
 msgid "No collections found for this wallet yet. Create one below."
 msgstr ""
 
-#: includes/class-settings-page.php:236
+#: includes/class-settings-page.php:254
 msgid "Create a new collection"
 msgstr ""
 
-#: includes/class-settings-page.php:237
+#: includes/class-settings-page.php:255
 msgid "A separate collection to mint into — useful for organizing tokenized posts by section, author, or archive. The first collection you create becomes the default."
 msgstr ""
 
-#: includes/class-settings-page.php:239
+#: includes/class-settings-page.php:257
 msgid "Collection name, e.g. Politics"
 msgstr ""
 
-#: includes/class-settings-page.php:240
-#: assets/src/settings.js:78
+#: includes/class-settings-page.php:258
+#: assets/src/settings.js:123
 msgid "Create Collection"
 msgstr ""
 
-#: includes/class-settings-page.php:249
+#: includes/class-settings-page.php:267
 msgid "Route categories to collections"
 msgstr ""
 
-#: includes/class-settings-page.php:250
+#: includes/class-settings-page.php:268
 msgid "Posts in a mapped category are tokenized into that collection instead of the default. Bulk tokenization and the per-post editor both use this."
 msgstr ""
 
-#: includes/class-settings-page.php:254
+#: includes/class-settings-page.php:272
 msgid "Category"
 msgstr ""
 
-#: includes/class-settings-page.php:264
+#: includes/class-settings-page.php:282
 msgid "Use default collection"
 msgstr ""
 
-#: includes/class-settings-page.php:274
-#: assets/src/settings.js:101
+#: includes/class-settings-page.php:292
+#: assets/src/settings.js:146
 msgid "Save Mapping"
 msgstr ""
 
-#: includes/class-settings.php:183
+#: includes/class-settings.php:196
 msgid "Collections could not be loaded."
 msgstr ""
 
@@ -367,10 +406,6 @@ msgstr ""
 msgid "Signing & minting…"
 msgstr ""
 
-#: assets/src/bulk-action.js:82
-msgid "Failed"
-msgstr ""
-
 #: assets/src/bulk-action.js:90
 #, js-format
 msgid "%1$d minted, %2$d failed."
@@ -402,10 +437,6 @@ msgstr ""
 msgid "Tokenizing…"
 msgstr ""
 
-#: assets/src/metabox.js:64
-msgid "Checking…"
-msgstr ""
-
 #: assets/src/mint-flow.js:10
 #, js-format
 msgid "Minted on chain, but this site could not save it. Transaction: %s"
@@ -425,35 +456,55 @@ msgstr ""
 msgid "No collection configured. Connect a wallet in Medialane Settings first."
 msgstr ""
 
-#: assets/src/settings.js:48
+#: assets/src/settings.js:40
+msgid "The API key was not accepted. Check it at portal.medialane.io/account."
+msgstr ""
+
+#: assets/src/settings.js:41
+msgid "No credits left. Add credits at portal.medialane.io/account."
+msgstr ""
+
+#: assets/src/settings.js:42
+msgid "Could not check the account right now."
+msgstr ""
+
+#: assets/src/settings.js:59
 msgid "Connecting…"
 msgstr ""
 
-#: assets/src/settings.js:56
+#: assets/src/settings.js:67
 msgid "Failed to connect wallet."
 msgstr ""
 
-#: assets/src/settings.js:66
+#: assets/src/settings.js:87
+msgid "Failed to save the collection label."
+msgstr ""
+
+#: assets/src/settings.js:100
+msgid "Failed to set the default collection."
+msgstr ""
+
+#: assets/src/settings.js:111
 msgid "Give the new collection a name first."
 msgstr ""
 
-#: assets/src/settings.js:70
+#: assets/src/settings.js:115
 msgid "Creating…"
 msgstr ""
 
-#: assets/src/settings.js:79
+#: assets/src/settings.js:124
 msgid "Failed to create collection."
 msgstr ""
 
-#: assets/src/settings.js:91
+#: assets/src/settings.js:136
 msgid "Saved"
 msgstr ""
 
-#: assets/src/settings.js:93
+#: assets/src/settings.js:138
 msgid "Saving…"
 msgstr ""
 
-#: assets/src/settings.js:98
+#: assets/src/settings.js:143
 msgid "Failed to save the category mapping."
 msgstr ""
 
