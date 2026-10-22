@@ -2,12 +2,15 @@
 /**
  * Plugin Name: Tokenize, Protect & License Your Content
  * Description: Turn your posts into protected, licensed IP assets with Medialane. Prove authorship, set clear licensing terms, and keep control of how your content is used.
- * Version: 0.2.0
+ * Plugin URI: https://github.com/medialane-io/medialane-wordpress
+ * Version: 0.3.0
  * Requires PHP: 7.4
  * Requires at least: 6.0
  * Author: Medialane
  * License: GPL-2.0-or-later
  * Text Domain: tokenize-content
+ * Domain Path: /languages
+ * Update URI: https://github.com/medialane-io/medialane-wordpress
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
