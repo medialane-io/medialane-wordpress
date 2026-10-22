@@ -36,6 +36,10 @@ No. Only the site admin connects a wallet.
 
 Yes. Define a `TOKENIZE_CONTENT_API_KEY` constant in `wp-config.php`.
 
+= Who pays for the requests? =
+
+Every request the plugin makes is paid from the credits of the Medialane account that owns the API key.
+
 == Changelog ==
 
 = 0.3.0 =
