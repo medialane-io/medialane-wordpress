@@ -37,6 +37,8 @@ class RestProxy {
 
 	const RPC_MAX_BATCH = 20;
 
+	const METADATA_MAX_BYTES = 480 * 1024;
+
 	public static function register_routes() {
 		foreach ( self::FORWARDS as $route => $forward ) {
 			register_rest_route( self::NAMESPACE, $route, array(
@@ -55,11 +57,6 @@ class RestProxy {
 		register_rest_route( self::NAMESPACE, '/posts/(?P<id>\d+)/featured-image', array(
 			'methods'             => 'POST',
 			'callback'            => array( __CLASS__, 'upload_featured_image' ),
-			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
-		) );
-		register_rest_route( self::NAMESPACE, '/metadata/upload-file', array(
-			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'forward_file' ),
 			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
 		) );
 		register_rest_route( self::NAMESPACE, '/tokenize-data', array(
@@ -133,11 +130,20 @@ class RestProxy {
 				$posts[ $id ] = array( 'error' => Eligibility::message() );
 				continue;
 			}
+			if ( Eligibility::is_tokenized( $id ) ) {
+				$posts[ $id ] = array( 'error' => Eligibility::tokenized_message() );
+				continue;
+			}
+			$content = 'full' === $scope ? Description::markdown( $post ) : '';
+			if ( strlen( (string) wp_json_encode( $content ) ) > self::METADATA_MAX_BYTES ) {
+				$posts[ $id ] = array( 'error' => __( 'This post is too long to tokenize in full. Switch the content setting to Excerpt.', 'tokenize-content' ) );
+				continue;
+			}
 			$collection   = Settings::resolve_collection_for_post( $id, $live );
 			$posts[ $id ] = array(
 				'title'              => get_the_title( $post ),
 				'description'        => Description::plain_text( $post, 'excerpt' ),
-				'content'            => 'full' === $scope ? Description::markdown( $post ) : '',
+				'content'            => $content,
 				'author'             => get_the_author_meta( 'display_name', $post->post_author ),
 				'publisher'          => get_bloginfo( 'name' ),
 				'url'                => get_permalink( $post ),
@@ -156,6 +162,9 @@ class RestProxy {
 		if ( ! $post || ! Eligibility::is_tokenizable( $post ) ) {
 			return new \WP_Error( 'tokenize_content_not_eligible', Eligibility::message(), array( 'status' => 422 ) );
 		}
+		if ( Eligibility::is_tokenized( $post_id ) ) {
+			return new \WP_Error( 'tokenize_content_already_tokenized', Eligibility::tokenized_message(), array( 'status' => 409 ) );
+		}
 		PostMeta::set_minting( $post_id );
 		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
 	}
@@ -164,7 +173,7 @@ class RestProxy {
 		$patterns = array(
 			'txHash'   => '/^0x[0-9a-fA-F]+$/',
 			'contract' => '/^0x[0-9a-fA-F]+$/',
-			'tokenId'  => '/^\d*$/',
+			'tokenId'  => '/^\d+$/',
 		);
 		foreach ( $fields as $field ) {
 			if ( ! preg_match( $patterns[ $field ], (string) $request->get_param( $field ) ) ) {
@@ -353,15 +362,6 @@ class RestProxy {
 			'timeout' => 60,
 		) );
 		return self::relay( $response );
-	}
-
-	public static function forward_file( \WP_REST_Request $request ) {
-		$files = $request->get_file_params();
-		if ( empty( $files['file'] ) ) {
-			return new \WP_Error( 'tokenize_content_no_file', __( 'No file provided.', 'tokenize-content' ), array( 'status' => 400 ) );
-		}
-		$file = $files['file'];
-		return self::post_file( (string) $file['name'], (string) $file['type'], (string) file_get_contents( $file['tmp_name'] ) );
 	}
 
 	public static function upload_featured_image( \WP_REST_Request $request ) {

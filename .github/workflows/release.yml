@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: The tag matches the plugin version
+        run: |
+          version=$(sed -n 's/^ \* Version: *//p' tokenize-content.php)
+          test "v$version" = "${GITHUB_REF_NAME}"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: The committed bundles are the built ones
+        run: git diff --exit-code assets/dist
+      - name: Package
+        run: |
+          mkdir -p dist/tokenize-content
+          rsync -a --exclude=/dist --exclude-from=.distignore ./ dist/tokenize-content/
+          (cd dist && zip -qr "tokenize-content-${GITHUB_REF_NAME#v}.zip" tokenize-content)
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true

@@ -173,7 +173,7 @@ class SettingsPage {
 						<th><label for="tokenize_content_license_default"><?php esc_html_e( 'Default license', 'tokenize-content' ); ?></label></th>
 						<td>
 							<select id="tokenize_content_license_default" name="<?php echo esc_attr( Settings::OPTION_LICENSE_DEFAULT ); ?>">
-								<?php foreach ( Settings::license_presets() as $preset ) : ?>
+								<?php foreach ( array_keys( Settings::license_terms() ) as $preset ) : ?>
 									<option value="<?php echo esc_attr( $preset ); ?>" <?php selected( Settings::get_license_default(), $preset ); ?>><?php echo esc_html( $preset ); ?></option>
 								<?php endforeach; ?>
 							</select>

@@ -56,12 +56,3 @@ export function mintedTokenIdsFromReceipt(receipt, contract) {
   }
   return tokenIds;
 }
-
-export async function executeCalls(account, calls) {
-  if (!calls || calls.length === 0) {
-    throw new Error(__("No calls to execute.", "tokenize-content"));
-  }
-  const { transaction_hash } = await account.execute(calls);
-  await waitForConfirmation(transaction_hash, account.channel?.provider);
-  return transaction_hash;
-}

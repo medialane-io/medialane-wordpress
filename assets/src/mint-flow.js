@@ -1,15 +1,14 @@
-import { signTypedData, waitForConfirmation, mintedTokenIdsFromReceipt } from "./wallet.js";
+import { waitForConfirmation, mintedTokenIdsFromReceipt } from "./wallet.js";
 import {
   uploadJson, uploadFeaturedImage, createMintIntent, provisionRecipientWallet,
-  buildSponsoredInvoke, executeSponsoredInvoke,
   markMinting, markBroadcast, markMinted, markError,
 } from "./api.js";
-import { ensureSession, forgetSession } from "./session.js";
+import { sponsor } from "./sponsor.js";
 import { buildPostMetadata } from "./metadata.js";
 import { __, sprintf } from "@wordpress/i18n";
 
-const SIGN_IN_REQUIRED = "invalid_request_auth";
-const saveFailed = () => __("Minted on chain, but this site could not save it. Use Check status on the post.", "tokenize-content");
+const saveFailed = (txHash) => sprintf(__("Minted on chain, but this site could not save it. Transaction: %s", "tokenize-content"), txHash);
+const notMinted = (txHash) => sprintf(__("Transaction %s did not mint this post.", "tokenize-content"), txHash);
 const wentWrong = () => __("Something went wrong", "tokenize-content");
 
 export { markError };
@@ -36,20 +35,18 @@ export async function prepareMint({ postId, title, body, content, author, publis
   return { postId, license, intentId: intent.data.id };
 }
 
-async function sponsor(account, address, intentIds) {
-  const attempt = async () => {
-    await ensureSession(account, address);
-    const built = await buildSponsoredInvoke({ intentIds });
-    const signature = await signTypedData(account, built.typedData);
-    return executeSponsoredInvoke({ intentIds, typedData: built.typedData, signature });
-  };
-  try {
-    return await attempt();
-  } catch (err) {
-    if (err.code !== SIGN_IN_REQUIRED) throw err;
-    forgetSession();
-    return attempt();
+async function settle({ postId, license }, txHash, contract, tokenId) {
+  if (!tokenId) {
+    const message = notMinted(txHash);
+    await markError(postId, message);
+    return { postId, txHash, error: message };
   }
+  try {
+    await markMinted(postId, { tokenId, txHash, contract, license });
+  } catch {
+    return { postId, txHash, error: saveFailed(txHash) };
+  }
+  return { postId, txHash };
 }
 
 async function failAll(entries, message) {
@@ -83,12 +80,7 @@ export async function executeMintBatch({ account, address, collectionContract, e
     return failAll(entries, err.message || wentWrong());
   }
 
-  const saved = await Promise.allSettled(entries.map((e, i) =>
-    markMinted(e.postId, { tokenId: tokenIds[i] || "", txHash, contract: collectionContract, license: e.license })
-  ));
-  return entries.map((e, i) =>
-    saved[i].status === "fulfilled" ? { postId: e.postId, txHash } : { postId: e.postId, txHash, error: saveFailed() }
-  );
+  return Promise.all(entries.map((e, i) => settle(e, txHash, collectionContract, tokenIds[i])));
 }
 
 export async function resumeMint({ postId, txHash, contract, license, index }) {
@@ -101,10 +93,5 @@ export async function resumeMint({ postId, txHash, contract, license, index }) {
     await markError(postId, message);
     return { postId, error: message };
   }
-  try {
-    await markMinted(postId, { tokenId: tokenIds[index] || "", txHash, contract, license });
-  } catch {
-    return { postId, txHash, error: saveFailed() };
-  }
-  return { postId, txHash };
+  return settle({ postId, license }, txHash, contract, tokenIds[index]);
 }

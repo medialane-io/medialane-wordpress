@@ -2,9 +2,9 @@
 Contributors: medialane
 Tags: ip, licensing, nft, wallet, starknet
 Requires at least: 6.0
-Tested up to: 6.6
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,10 @@ Turn your posts into protected, licensed IP assets with Medialane.
 Tokenize posts as licensed IP assets. Choose a Creative Commons license or reserve all rights, and set a policy on AI training use.
 
 Tokenize one post from its editor, or several at once from the Posts list. Only published posts without a password can be tokenized. Organize posts into collections, with categories routed to a collection. Tokenized posts show a public badge.
+
+== Source code ==
+
+The JavaScript in `assets/dist` is built from `assets/src` with `npm install && npm run build`. The source is at https://github.com/medialane-io/medialane-wordpress.
 
 == Installation ==
 
@@ -32,7 +36,19 @@ No. Only the site admin connects a wallet.
 
 Yes. Define a `TOKENIZE_CONTENT_API_KEY` constant in `wp-config.php`.
 
+= Who pays for the requests? =
+
+Every request the plugin makes is paid from the credits of the Medialane account that owns the API key.
+
 == Changelog ==
+
+= 0.3.0 =
+* Creating a collection is sponsored, like tokenizing.
+* Bulk tokenizing skips posts that are already tokenized.
+* Posts too long to tokenize in full are reported before anything is uploaded.
+* A post is marked as tokenized only once its token is found on chain.
+* The default license is always a preset with terms.
+* Translation template included.
 
 = 0.2.0 =
 * License presets and an AI training policy.

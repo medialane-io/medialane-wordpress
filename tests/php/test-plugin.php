@@ -22,4 +22,8 @@ class Test_Plugin extends Tokenize_Test_Case {
 		$this->assertSame( 1, preg_match( '/^Stable tag:\s*(\S+)/m', file_get_contents( $this->root( 'readme.txt' ) ), $match ) );
 		$this->assertSame( TOKENIZE_CONTENT_PLUGIN_VERSION, $match[1] );
 	}
+
+	public function test_the_backend_url_can_be_defined_before_the_plugin_loads() {
+		$this->assertSame( 'https://backend.test', TOKENIZE_CONTENT_BACKEND_URL );
+	}
 }
