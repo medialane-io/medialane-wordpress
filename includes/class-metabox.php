@@ -81,9 +81,10 @@ class Metabox {
 			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'walletAddress'      => Settings::get_wallet_address(),
+			'licenseDefault'     => Settings::get_license_default(),
 			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
 			'licenses'           => Settings::license_terms(),
-			'postId'             => $post ? $post->ID : 0,
+			'postId'           => $post ? $post->ID : 0,
 		) );
 	}
 }

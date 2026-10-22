@@ -11,7 +11,7 @@ class RestProxy {
 	const NAMESPACE = 'tokenize-content/v1';
 
 	const FORWARDS = array(
-		'/metadata/upload'           => array( 'path' => '/v1/metadata/upload', 'fields' => array( 'name', 'description', 'image', 'attributes' ) ),
+		'/metadata/upload'           => array( 'path' => '/v1/metadata/upload', 'fields' => array( 'name', 'description', 'image', 'external_url', 'attributes' ) ),
 		'/intents/create-collection' => array( 'path' => '/v1/intents/create-collection', 'fields' => array( 'owner', 'name', 'symbol' ) ),
 		'/intents/mint'              => array( 'path' => '/v1/intents/mint', 'fields' => array( 'owner', 'recipient', 'collectionId', 'tokenUri', 'royaltyBps' ) ),
 		'/collections/sync-tx'       => array( 'path' => '/v1/tx/sync', 'fields' => array( 'txHash' ) ),
@@ -136,8 +136,8 @@ class RestProxy {
 			$collection   = Settings::resolve_collection_for_post( $id, $live );
 			$posts[ $id ] = array(
 				'title'              => get_the_title( $post ),
-				'description'        => Description::plain_text( $post, $scope ),
-				'content'            => Description::markdown( $post ),
+				'description'        => Description::plain_text( $post, 'excerpt' ),
+				'content'            => 'full' === $scope ? Description::markdown( $post ) : '',
 				'author'             => get_the_author_meta( 'display_name', $post->post_author ),
 				'publisher'          => get_bloginfo( 'name' ),
 				'url'                => get_permalink( $post ),

@@ -255,8 +255,8 @@ class Settings {
 	}
 
 	public static function get_content_scope(): string {
-		$scope = get_option( self::OPTION_CONTENT_SCOPE, 'excerpt' );
-		return in_array( $scope, array( 'excerpt', 'full' ), true ) ? $scope : 'excerpt';
+		$scope = get_option( self::OPTION_CONTENT_SCOPE, 'full' );
+		return in_array( $scope, array( 'excerpt', 'full' ), true ) ? $scope : 'full';
 	}
 
 	public static function get_license_default(): string {

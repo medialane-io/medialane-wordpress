@@ -101,6 +101,27 @@ describe("tokenizePost", () => {
     expect(api.uploadJson.mock.calls[0][0].attributes).toEqual(expect.arrayContaining([{ trait_type: "License", value: "Ask me first" }]));
   });
 
+  it("falls back to the site's default license when Custom is chosen and the terms are left empty", async () => {
+    global.window.tokenizeContentData.licenseDefault = "CC BY-SA";
+    global.window.tokenizeContentData.licenses = { "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" } };
+    for (const typed of ["", "   "]) {
+      api.uploadJson.mockClear();
+      global.document = {
+        getElementById: (id) => ({
+          "tokenize-content-license": { value: "Custom" },
+          "tokenize-content-license-custom": { value: typed },
+        }[id] || null),
+      };
+
+      await tokenizePost(1);
+
+      expect(api.uploadJson.mock.calls[0][0].attributes).toEqual(expect.arrayContaining([
+        { trait_type: "License", value: "CC BY-SA" },
+        { trait_type: "Derivatives", value: "Share-Alike" },
+      ]));
+    }
+  });
+
   it("throws when no collection is configured", async () => {
     api.getTokenizeData.mockResolvedValue({ posts: { 1: serverPost({ collectionContract: "", collectionId: "" }) } });
 
