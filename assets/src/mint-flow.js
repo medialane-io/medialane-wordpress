@@ -5,7 +5,7 @@ import {
   markMinting, markBroadcast, markMinted, markError,
 } from "./api.js";
 import { ensureSession, forgetSession } from "./session.js";
-import { buildLicenseAttributes, buildPublicationAttributes } from "./license.js";
+import { buildPostMetadata } from "./metadata.js";
 import { __, sprintf } from "@wordpress/i18n";
 
 const SIGN_IN_REQUIRED = "invalid_request_auth";
@@ -22,13 +22,9 @@ export async function prepareMint({ postId, title, body, content, author, publis
   const recipient = provisioned.data.walletAddress;
 
   const image = hasImage ? (await uploadFeaturedImage(postId)).data.url : null;
-  const metadata = await uploadJson({
-    name: title,
-    description: body,
-    content: content || undefined,
-    image: image || undefined,
-    attributes: [...buildPublicationAttributes({ author, publisher, url }), ...buildLicenseAttributes(license, aiPolicy, licenses)],
-  });
+  const metadata = await uploadJson(buildPostMetadata({
+    title, body, content, author, publisher, url, imageUri: image, license, licenses, aiPolicy,
+  }));
 
   const intent = await createMintIntent({
     owner: address,

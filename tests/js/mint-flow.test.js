@@ -85,24 +85,19 @@ describe("prepareMint", () => {
     ]));
   });
 
-  it("uploads the full content beside the summary and describes the post as a publication", async () => {
+  it("uploads the post as standard metadata: summary as the description, address as external_url, full text as an attribute", async () => {
     await prepareMint({ ...base, body: "Summary", content: "# Title\n\nFull text", author: "Ana", publisher: "Ambrosia", url: "https://ambrosia.com.br/p" });
 
     const payload = api.uploadJson.mock.calls[0][0];
-    expect(payload.description).toBe("Summary");
-    expect(payload.content).toBe("# Title\n\nFull text");
+    expect(payload).toMatchObject({ name: "A Post", description: "Summary", external_url: "https://ambrosia.com.br/p" });
+    expect(payload.content).toBeUndefined();
     expect(payload.attributes).toEqual(expect.arrayContaining([
       { trait_type: "IP Type", value: "Publications" },
-      { trait_type: "Author", value: "Ana" },
+      { trait_type: "Creator", value: "Ana" },
       { trait_type: "Publisher", value: "Ambrosia" },
-      { trait_type: "Website", value: "https://ambrosia.com.br/p" },
+      { trait_type: "Content", value: "# Title\n\nFull text" },
       { trait_type: "License", value: "CC BY-SA" },
     ]));
-  });
-
-  it("leaves the content out when the post has none", async () => {
-    await prepareMint(base);
-    expect(api.uploadJson.mock.calls[0][0].content).toBeUndefined();
   });
 
   it("pins the featured image and references it by its permanent address", async () => {
@@ -115,12 +110,12 @@ describe("prepareMint", () => {
   it("leaves the image out when the post has none", async () => {
     await prepareMint(base);
     expect(api.uploadFeaturedImage).not.toHaveBeenCalled();
-    expect(api.uploadJson.mock.calls[0][0].image).toBeUndefined();
+    expect(api.uploadJson.mock.calls[0][0].image).toBeNull();
 
     api.uploadJson.mockClear();
     api.uploadFeaturedImage.mockResolvedValue({ data: { url: null } });
     await prepareMint({ ...base, hasImage: true });
-    expect(api.uploadJson.mock.calls[0][0].image).toBeUndefined();
+    expect(api.uploadJson.mock.calls[0][0].image).toBeNull();
   });
 
   it("refuses to mint when the post's author has no registered email, before any request", async () => {

@@ -2,6 +2,7 @@
 
 use TokenizeContent\Metabox;
 use TokenizeContent\PostMeta;
+use TokenizeContent\Settings;
 
 class Test_Metabox extends Tokenize_Test_Case {
 
@@ -85,6 +86,17 @@ class Test_Metabox extends Tokenize_Test_Case {
 		$data = (string) wp_scripts()->get_data( 'tokenize-content-metabox', 'data' );
 		$this->assertStringContainsString( '"licenses"', $data );
 		$this->assertStringContainsString( 'Share-Alike', $data );
+		unset( $GLOBALS['post'] );
+	}
+
+	public function test_enqueue_hands_the_client_the_default_license() {
+		$GLOBALS['post'] = get_post( $this->factory->post->create() );
+		update_option( Settings::OPTION_LICENSE_DEFAULT, 'CC BY' );
+
+		Metabox::enqueue( 'post.php' );
+
+		$data = (string) wp_scripts()->get_data( 'tokenize-content-metabox', 'data' );
+		$this->assertStringContainsString( '"licenseDefault":"CC BY"', $data );
 		unset( $GLOBALS['post'] );
 	}
 }

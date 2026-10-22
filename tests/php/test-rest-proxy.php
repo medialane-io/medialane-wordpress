@@ -57,6 +57,37 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertStringEndsWith( '/v1/intents/mint', $captured_url );
 	}
 
+	public function test_the_metadata_upload_forwards_the_standard_fields_and_nothing_else() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+
+		$captured_body = null;
+		$intercept     = function ( $preempt, $args ) use ( &$captured_body ) {
+			$captured_body = json_decode( $args['body'], true );
+			return array(
+				'response' => array( 'code' => 200 ),
+				'body'     => wp_json_encode( array( 'ok' => true ) ),
+			);
+		};
+		add_filter( 'pre_http_request', $intercept, 10, 2 );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/metadata/upload' );
+		$request->set_body( wp_json_encode( array(
+			'name'         => 'A Post',
+			'description'  => 'Short',
+			'image'        => 'ipfs://img',
+			'external_url' => 'https://example.org/a-post',
+			'attributes'   => array( array( 'trait_type' => 'Content', 'value' => '# Title' ) ),
+			'extra'        => 'dropped',
+		) ) );
+		$this->server->dispatch( $request );
+
+		remove_filter( 'pre_http_request', $intercept, 10 );
+
+		$this->assertEqualsCanonicalizing( array( 'name', 'description', 'image', 'external_url', 'attributes' ), array_keys( $captured_body ) );
+		$this->assertSame( 'https://example.org/a-post', $captured_body['external_url'] );
+	}
+
 	public function test_editor_without_the_capability_is_rejected() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'editor' ) ) );
 
@@ -310,22 +341,22 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		}
 	}
 
-	public function test_tokenize_data_returns_a_plain_text_description_per_the_content_scope() {
+	public function test_tokenize_data_describes_the_post_with_its_excerpt_whatever_the_content_scope() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-		update_option( Settings::OPTION_CONTENT_SCOPE, 'full' );
-		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<!-- wp:paragraph --><p>Body <em>text</em></p><!-- /wp:paragraph -->' ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_excerpt' => 'Short <b>summary</b>', 'post_content' => '<!-- wp:paragraph --><p>Body <em>text</em></p><!-- /wp:paragraph -->' ) );
 
-		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
-		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
-		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
+		foreach ( array( 'full', 'excerpt' ) as $scope ) {
+			update_option( Settings::OPTION_CONTENT_SCOPE, $scope );
+			$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+			$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+			$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
 
-		$this->assertSame( 'Body text', $post['description'] );
-		$this->assertArrayNotHasKey( 'excerpt', $post );
+			$this->assertSame( 'Short summary', $post['description'] );
+		}
 	}
 
-	public function test_tokenize_data_returns_the_full_post_as_markdown_whatever_the_content_scope() {
+	public function test_tokenize_data_returns_the_full_post_as_markdown_by_default() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-		update_option( Settings::OPTION_CONTENT_SCOPE, 'excerpt' );
 		$post_id = $this->factory->post->create( array(
 			'post_status'  => 'publish',
 			'post_excerpt' => 'Short',
@@ -336,8 +367,19 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
 		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
 
-		$this->assertSame( 'Short', $post['description'] );
 		$this->assertSame( "## Title\n\nBody *text*", $post['content'] );
+	}
+
+	public function test_tokenize_data_returns_no_content_when_the_scope_is_excerpt() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_CONTENT_SCOPE, 'excerpt' );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish', 'post_excerpt' => 'Short', 'post_content' => '<p>Body text</p>' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $post_id ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $post_id ];
+
+		$this->assertSame( '', $post['content'] );
 	}
 
 	public function test_tokenize_data_returns_the_byline_the_site_name_and_the_post_address() {

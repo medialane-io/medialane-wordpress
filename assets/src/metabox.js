@@ -9,7 +9,8 @@ export async function tokenizePost(postId) {
 
   const licenseSelect = document.getElementById("tokenize-content-license");
   const licenseCustom = document.getElementById("tokenize-content-license-custom");
-  const license = licenseSelect.value === "Custom" ? licenseCustom.value : licenseSelect.value;
+  const customTerms = licenseCustom.value.trim();
+  const license = licenseSelect.value === "Custom" ? (customTerms || data.licenseDefault) : licenseSelect.value;
 
   const { address, account } = await connectWallet();
   assertSiteWallet(address, data.walletAddress);
