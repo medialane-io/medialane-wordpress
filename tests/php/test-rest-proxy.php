@@ -436,18 +436,16 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( 'minted', \TokenizeContent\PostMeta::get_status( $post_id ) );
 	}
 
-	public function test_tokenize_data_refuses_a_post_too_long_to_tokenize_in_full() {
+	public function test_tokenize_data_sends_a_long_post_in_full() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 		$long = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<p>' . str_repeat( 'word ', 120000 ) . '</p>' ) );
-		$short = $this->factory->post->create( array( 'post_status' => 'publish', 'post_content' => '<p>' . str_repeat( 'word ', 20000 ) . '</p>' ) );
 
 		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
-		$request->set_body_params( array( 'ids' => array( $long, $short ) ) );
+		$request->set_body_params( array( 'ids' => array( $long ) ) );
 		$posts = $this->server->dispatch( $request )->get_data()['posts'];
 
-		$this->assertArrayHasKey( 'error', $posts[ $long ] );
-		$this->assertArrayNotHasKey( 'content', $posts[ $long ] );
-		$this->assertArrayNotHasKey( 'error', $posts[ $short ] );
+		$this->assertArrayNotHasKey( 'error', $posts[ $long ] );
+		$this->assertStringContainsString( str_repeat( 'word ', 1000 ), $posts[ $long ]['content'] );
 	}
 
 	public function test_a_long_post_is_tokenized_when_the_scope_is_excerpt() {
