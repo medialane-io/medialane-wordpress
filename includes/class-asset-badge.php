@@ -21,7 +21,7 @@ class AssetBadge {
 		return $content . self::render( get_the_ID() );
 	}
 
-	public static function render( int $post_id ): string {
+	public static function url_for_post( int $post_id ): string {
 		if ( PostMeta::STATUS_MINTED !== PostMeta::get_status( $post_id ) ) {
 			return '';
 		}
@@ -30,8 +30,15 @@ class AssetBadge {
 		if ( ! $contract || ! $token_id ) {
 			return '';
 		}
-		$license   = PostMeta::get_license( $post_id );
-		$asset_url = self::ASSET_BASE_URL . '/' . rawurlencode( $contract ) . '/' . rawurlencode( $token_id );
+		return self::ASSET_BASE_URL . '/' . rawurlencode( $contract ) . '/' . rawurlencode( $token_id );
+	}
+
+	public static function render( int $post_id ): string {
+		$asset_url = self::url_for_post( $post_id );
+		if ( '' === $asset_url ) {
+			return '';
+		}
+		$license = PostMeta::get_license( $post_id );
 		$image     = get_the_post_thumbnail( $post_id, 'medium' );
 
 		ob_start();

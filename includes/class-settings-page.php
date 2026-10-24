@@ -52,6 +52,7 @@ class SettingsPage {
 				self::render_gate( __( 'Add your API key and save it to continue setup.', 'tokenize-content' ) );
 				return;
 			}
+			self::render_credits();
 			self::render_wallet();
 			if ( ! Settings::get_wallet_address() ) {
 				self::render_gate( __( 'Connect the wallet that will sign every tokenize action on this site to continue setup.', 'tokenize-content' ) );
@@ -135,6 +136,13 @@ class SettingsPage {
 		<?php
 	}
 
+	private static function render_credits() {
+		?>
+			<p><strong><?php esc_html_e( 'Credits:', 'tokenize-content' ); ?></strong> <span id="tokenize-content-credits"><?php esc_html_e( 'Checking…', 'tokenize-content' ); ?></span></p>
+
+		<?php
+	}
+
 	private static function render_wallet() {
 		?>
 			<h2><?php esc_html_e( 'Wallet', 'tokenize-content' ); ?></h2>
@@ -202,10 +210,11 @@ class SettingsPage {
 		?>
 			<?php if ( $collections ) : ?>
 				<h2><?php esc_html_e( 'Collections', 'tokenize-content' ); ?></h2>
-				<table class="widefat" style="max-width:640px;">
+				<?php $default = Settings::effective_default( $collections ); ?>
+				<table class="widefat" style="max-width:800px;">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Label', 'tokenize-content' ); ?></th>
+							<th><?php esc_html_e( 'Name', 'tokenize-content' ); ?></th>
 							<th><?php esc_html_e( 'Contract', 'tokenize-content' ); ?></th>
 							<th><?php esc_html_e( 'Default', 'tokenize-content' ); ?></th>
 						</tr>
@@ -215,7 +224,13 @@ class SettingsPage {
 							<tr>
 								<td><?php echo esc_html( $collection['label'] ); ?></td>
 								<td><code><?php echo esc_html( $collection['contract'] ); ?></code></td>
-								<td><?php echo Settings::same_address( Settings::get_default_collection(), $collection['contract'] ) ? esc_html__( 'Yes', 'tokenize-content' ) : ''; ?></td>
+								<td>
+									<?php if ( $default && Settings::same_address( $default['contract'], $collection['contract'] ) ) : ?>
+										<?php esc_html_e( 'Yes', 'tokenize-content' ); ?>
+									<?php else : ?>
+										<button type="button" class="button tokenize-content-collection-default" data-contract="<?php echo esc_attr( $collection['contract'] ); ?>"><?php esc_html_e( 'Make default', 'tokenize-content' ); ?></button>
+									<?php endif; ?>
+								</td>
 							</tr>
 						<?php endforeach; ?>
 					</tbody>

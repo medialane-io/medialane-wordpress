@@ -144,27 +144,6 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertStringEndsWith( '/v1/paymaster/invoke/execute', $captured_urls[1] );
 	}
 
-	public function test_settings_collections_route_saves_a_collection_s_label() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-
-		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/collections' );
-		$request->set_body_params( array( 'contract' => '0xaaa11', 'label' => 'Politics' ) );
-		$response = $this->server->dispatch( $request );
-
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( array( '0xaaa11' => 'Politics' ), $response->get_data()['labels'] );
-	}
-
-	public function test_settings_collections_route_requires_admin_permission() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'subscriber' ) ) );
-
-		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/collections' );
-		$request->set_body_params( array( 'contract' => '0xaaa11', 'label' => 'Politics' ) );
-		$response = $this->server->dispatch( $request );
-
-		$this->assertSame( 403, $response->get_status() );
-	}
-
 	public function test_settings_wallet_route_saves_the_address_immediately() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 
@@ -250,6 +229,118 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( '0xaaa', $response->get_data()['posts'][ $posts[0] ]['collectionContract'] );
 		$this->assertSame( '4', $response->get_data()['posts'][ $posts[0] ]['collectionId'] );
 		remove_all_filters( 'pre_http_request' );
+	}
+
+	private function two_live_collections() {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array(
+				array( 'contractAddress' => '0x00aaa', 'collectionId' => '1', 'service' => 'mip-erc721' ),
+				array( 'contractAddress' => '0xbbb', 'collectionId' => '2', 'service' => 'mip-erc721' ),
+			) ) ) );
+		} );
+	}
+
+	public function test_there_is_no_route_to_store_a_collection_label() {
+		$this->assertArrayNotHasKey( '/tokenize-content/v1/settings/collections', $this->server->get_routes() );
+	}
+
+	public function test_listing_collections_drops_the_cached_list_so_the_next_page_load_is_fresh() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+		$calls = 0;
+		add_filter( 'pre_http_request', function () use ( &$calls ) {
+			$calls++;
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( array( 'contractAddress' => '0xaaa', 'collectionId' => '1', 'service' => 'mip-erc721' ) ) ) ) );
+		} );
+		Settings::fetch_live_collections();
+		Settings::fetch_live_collections();
+		$this->assertSame( 1, $calls );
+
+		$request = new WP_REST_Request( 'GET', '/tokenize-content/v1/collections' );
+		$request->set_param( 'owner', '0xbeef01' );
+		$this->server->dispatch( $request );
+		Settings::fetch_live_collections();
+
+		$this->assertSame( 3, $calls );
+		remove_all_filters( 'pre_http_request' );
+	}
+
+	public function test_the_default_collection_can_be_changed_to_another_of_the_wallet_s_collections() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$this->two_live_collections();
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/default-collection' );
+		$request->set_body_params( array( 'contract' => '0xBBB' ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '0xbbb', Settings::get_default_collection() );
+		remove_all_filters( 'pre_http_request' );
+	}
+
+	public function test_a_contract_that_is_not_one_of_the_wallet_s_collections_cannot_become_the_default() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$this->two_live_collections();
+		Settings::set_default_collection( '0x00aaa' );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/default-collection' );
+		$request->set_body_params( array( 'contract' => '0xccc' ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( '0x00aaa', Settings::get_default_collection() );
+		remove_all_filters( 'pre_http_request' );
+	}
+
+	public function test_only_an_administrator_can_change_the_default_collection() {
+		get_role( 'editor' )->add_cap( Settings::CAP_TOKENIZE );
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'editor' ) ) );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'POST', '/tokenize-content/v1/settings/default-collection' ) );
+
+		$this->assertSame( 403, $response->get_status() );
+	}
+
+	public function test_the_account_route_reads_the_balance_with_the_site_key() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		add_filter( 'pre_http_request', function ( $pre, $args, $url ) use ( &$captured ) {
+			$captured = array( 'url' => $url, 'args' => $args );
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array( 'creditBalance' => 12 ) ) ) );
+		}, 10, 3 );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'GET', '/tokenize-content/v1/account' ) );
+
+		$this->assertSame( 12, $response->get_data()['data']['creditBalance'] );
+		$this->assertSame( 'https://backend.test/v1/portal/me', $captured['url'] );
+		$this->assertSame( 'test-key', $captured['args']['headers']['x-api-key'] );
+		remove_all_filters( 'pre_http_request' );
+	}
+
+	public function test_the_account_route_passes_the_backend_status_through() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 402 ), 'body' => wp_json_encode( array( 'code' => 'credits_exhausted' ) ) );
+		} );
+
+		$response = $this->server->dispatch( new WP_REST_Request( 'GET', '/tokenize-content/v1/account' ) );
+
+		$this->assertSame( 402, $response->get_status() );
+		remove_all_filters( 'pre_http_request' );
+	}
+
+	public function test_the_account_route_needs_a_key_and_an_administrator() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		delete_option( Settings::OPTION_API_KEY );
+		$this->assertSame( 400, $this->server->dispatch( new WP_REST_Request( 'GET', '/tokenize-content/v1/account' ) )->get_status() );
+
+		get_role( 'editor' )->add_cap( Settings::CAP_TOKENIZE );
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'editor' ) ) );
+		$this->assertSame( 403, $this->server->dispatch( new WP_REST_Request( 'GET', '/tokenize-content/v1/account' ) )->get_status() );
 	}
 
 	public function test_broadcast_route_records_the_reference_and_keeps_the_post_minting() {
