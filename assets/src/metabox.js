@@ -2,9 +2,25 @@ import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch, resumeMint } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
 import { assertSiteWallet } from "./site-wallet.js";
+import { assertCredits } from "./credits.js";
+import { hasUnsavedChanges } from "./editor.js";
+import { guardLeaving } from "./leave-guard.js";
 import { __ } from "@wordpress/i18n";
 
 export async function tokenizePost(postId) {
+  if (hasUnsavedChanges()) {
+    throw new Error(__("Save the post before tokenizing. The token is made from the saved version.", "tokenize-content"));
+  }
+  await assertCredits();
+  const release = guardLeaving();
+  try {
+    return await mintPost(postId);
+  } finally {
+    release();
+  }
+}
+
+async function mintPost(postId) {
   const data = window.tokenizeContentData;
 
   const licenseSelect = document.getElementById("tokenize-content-license");

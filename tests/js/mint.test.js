@@ -6,6 +6,8 @@ vi.mock("../../assets/src/wallet.js", () => ({
   waitForConfirmation: vi.fn(),
   mintedTokenIdsFromReceipt: vi.fn(),
 }));
+vi.mock("../../assets/src/credits.js", () => ({ assertCredits: vi.fn() }));
+vi.mock("../../assets/src/editor.js", () => ({ hasUnsavedChanges: vi.fn() }));
 vi.mock("../../assets/src/session.js", () => ({
   ensureSession: vi.fn(),
   forgetSession: vi.fn(),
@@ -19,7 +21,6 @@ vi.mock("../../assets/src/api.js", () => ({
   buildSponsoredInvoke: vi.fn(),
   executeSponsoredInvoke: vi.fn(),
   markMinting: vi.fn(),
-  markBroadcast: vi.fn(),
   markMinted: vi.fn(),
   markError: vi.fn(),
 }));
@@ -46,7 +47,7 @@ function pageElements({ license = "All Rights Reserved", select = null } = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  global.window = { tokenizeContentData: { aiPolicyDefault: "Allowed", walletAddress: "0xowner", licenses: {} } };
+  global.window = { addEventListener: vi.fn(), removeEventListener: vi.fn(), tokenizeContentData: { aiPolicyDefault: "Allowed", walletAddress: "0xowner", licenses: {} } };
   pageElements();
   wallet.connectWallet.mockResolvedValue({ address: "0xowner", account: {} });
   wallet.signTypedData.mockResolvedValue(["0x1", "0x2"]);
@@ -58,7 +59,7 @@ beforeEach(() => {
   api.createMintIntent.mockResolvedValue({ data: { id: "intent-1", calls: [] } });
   api.buildSponsoredInvoke.mockResolvedValue({ typedData: { message: {} } });
   api.executeSponsoredInvoke.mockResolvedValue({ transactionHash: "0xtx" });
-  for (const fn of ["markMinting", "markBroadcast", "markMinted", "markError"]) api[fn].mockResolvedValue({});
+  for (const fn of ["markMinting", "markMinted", "markError"]) api[fn].mockResolvedValue({});
 });
 
 describe("tokenizePost", () => {

@@ -1,7 +1,7 @@
 import { waitForConfirmation, mintedTokenIdsFromReceipt } from "./wallet.js";
 import {
   uploadJson, uploadFeaturedImage, createMintIntent, provisionRecipientWallet,
-  markMinting, markBroadcast, markMinted, markError,
+  markMinting, markMinted, markError,
 } from "./api.js";
 import { sponsor } from "./sponsor.js";
 import { buildPostMetadata } from "./metadata.js";
@@ -64,15 +64,12 @@ export async function executeMintBatch({ account, address, collectionContract, e
 
   let txHash;
   try {
-    const executed = await sponsor(account, address, entries.map((e) => e.intentId));
+    const posts = entries.map((e) => ({ id: e.postId, contract: collectionContract, license: e.license }));
+    const executed = await sponsor(account, address, entries.map((e) => e.intentId), posts);
     txHash = executed.transactionHash;
   } catch (err) {
     return failAll(entries, err.message || wentWrong());
   }
-
-  await Promise.allSettled(entries.map((e, i) =>
-    markBroadcast(e.postId, { txHash, contract: collectionContract, license: e.license, index: i })
-  ));
 
   let tokenIds;
   try {

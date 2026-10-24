@@ -343,19 +343,67 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( 403, $this->server->dispatch( new WP_REST_Request( 'GET', '/tokenize-content/v1/account' ) )->get_status() );
 	}
 
-	public function test_broadcast_route_records_the_reference_and_keeps_the_post_minting() {
+	const TX       = '0xfeed';
+	const CONTRACT = '0x0abc';
+	const TRANSFER = '0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9';
+
+	private function mint_event( string $token ): array {
+		return array( 'from_address' => self::CONTRACT, 'keys' => array( self::TRANSFER, '0x0', '0x999', $token, '0x0' ), 'data' => array() );
+	}
+
+	private function confirmed_receipt( array $tokens = array( '0x65', '0x66' ), string $execution = 'SUCCEEDED' ): array {
+		return array(
+			'execution_status' => $execution,
+			'finality_status'  => 'ACCEPTED_ON_L2',
+			'events'           => array_map( array( $this, 'mint_event' ), $tokens ),
+		);
+	}
+
+	private function serve_chain( array $owned_contracts, $rpc_response, &$calls = null ) {
+		$calls = array();
+		add_filter( 'pre_http_request', function ( $pre, $args, $url ) use ( $owned_contracts, $rpc_response, &$calls ) {
+			$calls[] = $url;
+			if ( false !== strpos( $url, '/v1/collections' ) ) {
+				return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'data' => array_map( function ( $contract ) {
+					return array( 'contractAddress' => $contract, 'collectionId' => '7', 'service' => 'mip-erc721', 'name' => 'Main' );
+				}, $owned_contracts ) ) ) );
+			}
+			if ( false !== strpos( $url, '/v1/rpc' ) ) {
+				return is_wp_error( $rpc_response ) ? $rpc_response : array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( $rpc_response ) );
+			}
+			return array( 'response' => array( 'code' => 404 ), 'body' => '{}' );
+		}, 10, 3 );
+	}
+
+	private function connect_site() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		Settings::save_wallet_address( '0xbeef01' );
+	}
+
+	private function broadcast_post( string $index = '0' ): int {
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		\TokenizeContent\PostMeta::set_minting( $post_id );
+		\TokenizeContent\PostMeta::set_broadcast( $post_id, array( 'tx_hash' => self::TX, 'contract' => self::CONTRACT, 'license' => 'CC BY', 'batch_index' => $index ) );
+		return $post_id;
+	}
+
+	private function confirm( int $post_id, array $overrides = array() ) {
+		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/minted" );
+		$request->set_body_params( array_merge( array( 'tokenId' => '101', 'txHash' => self::TX, 'contract' => self::CONTRACT ), $overrides ) );
+		return $this->server->dispatch( $request );
+	}
+
+	public function test_there_is_no_route_for_the_browser_to_record_a_broadcast() {
+		$this->connect_site();
 		$post_id = $this->factory->post->create();
 		\TokenizeContent\PostMeta::set_minting( $post_id );
 
 		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/broadcast" );
 		$request->set_body_params( array( 'txHash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY', 'index' => 3 ) );
-		$response = $this->server->dispatch( $request );
 
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( 'minting', $response->get_data()['status'] );
-		$this->assertSame( '0xabc', \TokenizeContent\PostMeta::get_tx_hash( $post_id ) );
-		$this->assertSame( '3', \TokenizeContent\PostMeta::get_batch_index( $post_id ) );
+		$this->assertSame( 404, $this->server->dispatch( $request )->get_status() );
+		$this->assertSame( '', \TokenizeContent\PostMeta::get_tx_hash( $post_id ) );
 	}
 
 	public function minted_payloads_with_a_malformed_value() {
@@ -384,27 +432,243 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
 	}
 
-	public function test_minted_route_accepts_a_well_formed_reference() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-		$post_id = $this->factory->post->create();
+	public function test_minted_route_records_the_token_the_chain_shows_for_the_post() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), array( 'result' => $this->confirmed_receipt() ) );
+		$post_id = $this->broadcast_post( '1' );
 
-		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/minted" );
-		$request->set_body_params( array( 'tokenId' => '42', 'txHash' => '0xabc123', 'contract' => '0xdef456', 'license' => 'CC BY' ) );
-		$response = $this->server->dispatch( $request );
+		$response = $this->confirm( $post_id, array( 'tokenId' => '102' ) );
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( 'minted', $response->get_data()['status'] );
+		$this->assertSame( '102', \TokenizeContent\PostMeta::get_token_id( $post_id ) );
+		$this->assertSame( self::TX, \TokenizeContent\PostMeta::get_tx_hash( $post_id ) );
+		$this->assertSame( self::CONTRACT, \TokenizeContent\PostMeta::get_contract( $post_id ) );
+		$this->assertSame( 'CC BY', \TokenizeContent\PostMeta::get_license( $post_id ) );
 	}
 
-	public function test_broadcast_route_rejects_a_malformed_transaction_hash() {
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
-		$post_id = $this->factory->post->create();
+	public function test_minted_route_refuses_a_token_the_chain_does_not_show_at_the_post_s_place() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), array( 'result' => $this->confirmed_receipt() ) );
+		$post_id = $this->broadcast_post( '0' );
 
-		$request = new WP_REST_Request( 'POST', "/tokenize-content/v1/posts/{$post_id}/broadcast" );
-		$request->set_body_params( array( 'txHash' => '<b>x</b>', 'contract' => '0xdef', 'license' => 'CC BY', 'index' => 0 ) );
-		$response = $this->server->dispatch( $request );
+		$response = $this->confirm( $post_id, array( 'tokenId' => '102' ) );
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+		$this->assertSame( '', \TokenizeContent\PostMeta::get_token_id( $post_id ) );
+	}
+
+	public function test_minted_route_refuses_a_post_that_is_not_waiting_for_its_token() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), array( 'result' => $this->confirmed_receipt() ), $calls );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+
+		$response = $this->confirm( $post_id );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'none', \TokenizeContent\PostMeta::get_status( $post_id ) );
+		$this->assertSame( array(), $calls );
+	}
+
+	public function test_minted_route_cannot_replace_the_token_of_a_post_that_is_already_tokenized() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), array( 'result' => $this->confirmed_receipt() ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		\TokenizeContent\PostMeta::save_minted( $post_id, array( 'token_id' => '5', 'tx_hash' => '0xold', 'contract' => self::CONTRACT, 'license' => 'CC BY' ) );
+
+		$response = $this->confirm( $post_id );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( '5', \TokenizeContent\PostMeta::get_token_id( $post_id ) );
+	}
+
+	public function test_minted_route_refuses_a_transaction_other_than_the_one_recorded_for_the_post() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), array( 'result' => $this->confirmed_receipt() ), $calls );
+		$post_id = $this->broadcast_post();
+
+		$response = $this->confirm( $post_id, array( 'txHash' => '0xbeef' ) );
 
 		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+		$this->assertSame( array(), $calls );
+	}
+
+	public function test_minted_route_refuses_a_contract_other_than_the_one_recorded_for_the_post() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT, '0x0def' ), array( 'result' => $this->confirmed_receipt() ) );
+		$post_id = $this->broadcast_post();
+
+		$response = $this->confirm( $post_id, array( 'contract' => '0x0def' ) );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+	}
+
+	public function test_minted_route_refuses_a_contract_that_is_not_one_of_the_wallet_s_collections() {
+		$this->connect_site();
+		$this->serve_chain( array( '0x0def' ), array( 'result' => $this->confirmed_receipt() ), $calls );
+		$post_id = $this->broadcast_post();
+
+		$response = $this->confirm( $post_id );
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+		$this->assertEmpty( array_filter( $calls, function ( $url ) {
+			return false !== strpos( $url, '/v1/rpc' );
+		} ) );
+	}
+
+	public function test_minted_route_leaves_the_post_minting_when_the_collections_cannot_be_loaded() {
+		$this->connect_site();
+		add_filter( 'pre_http_request', function () {
+			return new WP_Error( 'http_request_failed', 'Could not resolve host' );
+		} );
+		$post_id = $this->broadcast_post();
+
+		$response = $this->confirm( $post_id );
+
+		$this->assertSame( 502, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+	}
+
+	public function test_minted_route_leaves_the_post_minting_when_the_transaction_reverted() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), array( 'result' => $this->confirmed_receipt( array( '0x65' ), 'REVERTED' ) ) );
+		$post_id = $this->broadcast_post();
+
+		$response = $this->confirm( $post_id );
+
+		$this->assertSame( 422, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+	}
+
+	public function test_minted_route_leaves_the_post_minting_when_the_receipt_cannot_be_read() {
+		$this->connect_site();
+		$this->serve_chain( array( self::CONTRACT ), new WP_Error( 'http_request_failed', 'timeout' ) );
+		$post_id = $this->broadcast_post();
+
+		$response = $this->confirm( $post_id );
+
+		$this->assertSame( 502, $response->get_status() );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $post_id ) );
+	}
+
+	private function execute_request( array $posts, array $intent_ids = array( 'i1', 'i2' ) ): WP_REST_Request {
+		return $this->json_request( '/paymaster/invoke/execute', array(
+			'intentIds' => $intent_ids,
+			'typedData' => array( 'message' => array() ),
+			'signature' => array( '0x1', '0x2' ),
+			'posts'     => $posts,
+		) );
+	}
+
+	private function minting_post( array $args = array() ): int {
+		$post_id = $this->factory->post->create( array_merge( array( 'post_status' => 'publish' ), $args ) );
+		\TokenizeContent\PostMeta::set_minting( $post_id );
+		return $post_id;
+	}
+
+	public function test_a_sponsored_execute_records_the_transaction_on_each_post_before_the_browser_hears_back() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$first  = $this->minting_post();
+		$second = $this->minting_post();
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'transactionHash' => '0xfeed' ) ) );
+		} );
+
+		$response = $this->server->dispatch( $this->execute_request( array(
+			array( 'id' => $first, 'contract' => '0x0abc', 'license' => 'CC BY' ),
+			array( 'id' => $second, 'contract' => '0x0abc', 'license' => 'CC0' ),
+		) ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '0xfeed', $response->get_data()['transactionHash'] );
+		$this->assertSame( 'minting', \TokenizeContent\PostMeta::get_status( $first ) );
+		$this->assertSame( '0xfeed', \TokenizeContent\PostMeta::get_tx_hash( $first ) );
+		$this->assertSame( '0x0abc', \TokenizeContent\PostMeta::get_contract( $first ) );
+		$this->assertSame( 'CC BY', \TokenizeContent\PostMeta::get_license( $first ) );
+		$this->assertSame( '0', \TokenizeContent\PostMeta::get_batch_index( $first ) );
+		$this->assertSame( '0xfeed', \TokenizeContent\PostMeta::get_tx_hash( $second ) );
+		$this->assertSame( 'CC0', \TokenizeContent\PostMeta::get_license( $second ) );
+		$this->assertSame( '1', \TokenizeContent\PostMeta::get_batch_index( $second ) );
+	}
+
+	public function test_the_post_list_is_not_forwarded_to_the_backend() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$post_id = $this->minting_post();
+		$this->capture_forwarded( $captured );
+
+		$this->server->dispatch( $this->execute_request( array( array( 'id' => $post_id, 'contract' => '0x0abc', 'license' => 'CC BY' ) ), array( 'i1' ) ) );
+
+		$this->assertSame( array( 'intentIds', 'typedData', 'signature' ), array_keys( json_decode( $captured['args']['body'], true ) ) );
+	}
+
+	public function test_nothing_is_recorded_when_the_backend_refuses_the_execute() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$post_id = $this->minting_post();
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 502 ), 'body' => wp_json_encode( array( 'error' => 'no' ) ) );
+		} );
+
+		$response = $this->server->dispatch( $this->execute_request( array( array( 'id' => $post_id, 'contract' => '0x0abc', 'license' => 'CC BY' ) ), array( 'i1' ) ) );
+
+		$this->assertSame( 502, $response->get_status() );
+		$this->assertSame( '', \TokenizeContent\PostMeta::get_tx_hash( $post_id ) );
+	}
+
+	public function execute_requests_that_must_be_refused_before_forwarding() {
+		return array(
+			'fewer posts than intents' => array( 400, function ( $ids ) {
+				return array( array( 'id' => $ids['mine'], 'contract' => '0x0abc', 'license' => 'CC BY' ) );
+			} ),
+			'a malformed contract'     => array( 400, function ( $ids ) {
+				return array(
+					array( 'id' => $ids['mine'], 'contract' => 'javascript:1', 'license' => 'CC BY' ),
+					array( 'id' => $ids['other_mine'], 'contract' => '0x0abc', 'license' => 'CC BY' ),
+				);
+			} ),
+			'a post not being minted'  => array( 409, function ( $ids ) {
+				return array(
+					array( 'id' => $ids['mine'], 'contract' => '0x0abc', 'license' => 'CC BY' ),
+					array( 'id' => $ids['idle'], 'contract' => '0x0abc', 'license' => 'CC BY' ),
+				);
+			} ),
+			'a post that is not theirs' => array( 403, function ( $ids ) {
+				return array(
+					array( 'id' => $ids['mine'], 'contract' => '0x0abc', 'license' => 'CC BY' ),
+					array( 'id' => $ids['theirs'], 'contract' => '0x0abc', 'license' => 'CC BY' ),
+				);
+			} ),
+		);
+	}
+
+	/**
+	 * @dataProvider execute_requests_that_must_be_refused_before_forwarding
+	 */
+	public function test_an_execute_the_site_cannot_record_is_refused_before_anything_is_sent( int $status, callable $posts ) {
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		get_role( 'author' )->add_cap( Settings::CAP_TOKENIZE );
+		$author = $this->factory->user->create( array( 'role' => 'author' ) );
+		wp_set_current_user( $author );
+		$ids = array(
+			'mine'       => $this->minting_post( array( 'post_author' => $author ) ),
+			'other_mine' => $this->minting_post( array( 'post_author' => $author ) ),
+			'idle'       => $this->factory->post->create( array( 'post_author' => $author, 'post_status' => 'publish' ) ),
+			'theirs'     => $this->minting_post( array( 'post_author' => $this->factory->user->create( array( 'role' => 'editor' ) ) ) ),
+		);
+		$this->capture_forwarded( $captured );
+
+		$response = $this->server->dispatch( $this->execute_request( $posts( $ids ) ) );
+
+		$this->assertSame( $status, $response->get_status() );
+		$this->assertNull( $captured );
+		$this->assertSame( '', \TokenizeContent\PostMeta::get_tx_hash( $ids['mine'] ) );
+		get_role( 'author' )->remove_cap( Settings::CAP_TOKENIZE );
 	}
 
 	public function test_tokenize_data_reports_a_failed_collections_lookup_instead_of_blank_collections() {

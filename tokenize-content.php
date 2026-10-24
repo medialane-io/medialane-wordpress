@@ -30,6 +30,7 @@ require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-eligibility.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-markdown.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-description.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-settings.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-mint-check.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-settings-page.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-rest-proxy.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-metabox.php';

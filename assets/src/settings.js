@@ -1,6 +1,7 @@
 import { connectWallet, waitForConfirmation } from "./wallet.js";
 import { sponsor } from "./sponsor.js";
 import { assertSiteWallet, sameAddress } from "./site-wallet.js";
+import { keyRejected, noCredits } from "./credits.js";
 import { __ } from "@wordpress/i18n";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
@@ -33,8 +34,8 @@ export async function creditsText() {
     const { data } = await getAccount();
     return Number(data.creditBalance).toLocaleString();
   } catch (err) {
-    if (err.status === 401) return __("The API key was not accepted. Check it at portal.medialane.io/account.", "tokenize-content");
-    if (err.status === 402) return __("No credits left. Add credits at portal.medialane.io/account.", "tokenize-content");
+    if (err.status === 401) return keyRejected();
+    if (err.status === 402) return noCredits();
     return err.message || __("Could not check the account right now.", "tokenize-content");
   }
 }
