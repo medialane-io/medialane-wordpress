@@ -10,6 +10,7 @@ vi.mock("../../assets/src/session.js", () => ({
   ensureSession: vi.fn(),
   forgetSession: vi.fn(),
 }));
+vi.mock("../../assets/src/credits.js", () => ({ assertCredits: vi.fn() }));
 vi.mock("../../assets/src/api.js", () => ({
   getTokenizeData: vi.fn(),
   uploadJson: vi.fn(),
@@ -19,13 +20,13 @@ vi.mock("../../assets/src/api.js", () => ({
   buildSponsoredInvoke: vi.fn(),
   executeSponsoredInvoke: vi.fn(),
   markMinting: vi.fn(),
-  markBroadcast: vi.fn(),
   markMinted: vi.fn(),
   markError: vi.fn(),
 }));
 
 const api = await import("../../assets/src/api.js");
 const wallet = await import("../../assets/src/wallet.js");
+const credits = await import("../../assets/src/credits.js");
 const { tokenizeBulk, buildStatusPanel } = await import("../../assets/src/bulk-action.js");
 
 const post = (n, extra = {}) => ({
@@ -40,8 +41,11 @@ function serverPosts(posts) {
 beforeEach(() => {
   vi.resetAllMocks();
   global.window = {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     tokenizeContentData: { licenseDefault: "CC BY-SA", aiPolicyDefault: "Allowed", walletAddress: "0xowner", licenses: { "CC BY-SA": { commercialUse: "Yes", derivatives: "Share-Alike", attribution: "Required" } } },
   };
+  credits.assertCredits.mockResolvedValue(undefined);
   wallet.connectWallet.mockResolvedValue({ address: "0xowner", account: {} });
   wallet.signTypedData.mockResolvedValue(["0x1", "0x2"]);
   wallet.waitForConfirmation.mockResolvedValue({ isReverted: () => false });
@@ -52,11 +56,34 @@ beforeEach(() => {
   api.createMintIntent.mockImplementation(async () => ({ data: { id: `intent-${++n}`, calls: [] } }));
   api.buildSponsoredInvoke.mockResolvedValue({ typedData: { message: {} } });
   api.executeSponsoredInvoke.mockResolvedValue({ transactionHash: "0xtx" });
-  for (const fn of ["markMinting", "markBroadcast", "markMinted", "markError"]) api[fn].mockResolvedValue({});
+  for (const fn of ["markMinting", "markMinted", "markError"]) api[fn].mockResolvedValue({});
   serverPosts({ 1: post(1), 2: post(2) });
 });
 
 describe("tokenizeBulk", () => {
+  it("stops before the wallet is asked or anything is uploaded when there are no credits", async () => {
+    credits.assertCredits.mockRejectedValue(new Error("No credits left."));
+
+    await expect(tokenizeBulk(["1", "2"], () => {})).rejects.toThrow("No credits left.");
+    expect(wallet.connectWallet).not.toHaveBeenCalled();
+    expect(api.uploadJson).not.toHaveBeenCalled();
+  });
+
+  it("keeps the tab from closing while it runs and lets it go afterwards", async () => {
+    await tokenizeBulk(["1", "2"], () => {});
+
+    const [type, handler] = window.addEventListener.mock.calls[0];
+    expect(type).toBe("beforeunload");
+    expect(window.removeEventListener).toHaveBeenCalledWith("beforeunload", handler);
+  });
+
+  it("lets the tab go when the run fails", async () => {
+    wallet.connectWallet.mockRejectedValue(new Error("No Starknet wallet found."));
+
+    await expect(tokenizeBulk(["1"], () => {})).rejects.toThrow("No Starknet wallet");
+    expect(window.removeEventListener).toHaveBeenCalledWith("beforeunload", window.addEventListener.mock.calls[0][1]);
+  });
+
   it("fetches the selected posts' data from the server once, by id", async () => {
     await tokenizeBulk(["1", "2"], () => {});
 

@@ -11,7 +11,7 @@ vi.mock("@wordpress/i18n", () => ({
 vi.mock("../../assets/src/api.js", () => ({
   uploadJson: vi.fn(), uploadFeaturedImage: vi.fn(), createMintIntent: vi.fn(), provisionRecipientWallet: vi.fn(),
   buildSponsoredInvoke: vi.fn(), executeSponsoredInvoke: vi.fn(), getTokenizeData: vi.fn(),
-  markMinting: vi.fn().mockResolvedValue({}), markBroadcast: vi.fn(), markMinted: vi.fn(), markError: vi.fn(),
+  markMinting: vi.fn().mockResolvedValue({}), markMinted: vi.fn(), markError: vi.fn(),
   rpcConfig: () => ({}),
 }));
 vi.mock("../../assets/src/session.js", () => ({ ensureSession: vi.fn(), forgetSession: vi.fn() }));

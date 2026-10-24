@@ -8,7 +8,6 @@ vi.mock("../../assets/src/api.js", () => ({
   buildSponsoredInvoke: vi.fn(),
   executeSponsoredInvoke: vi.fn(),
   markMinting: vi.fn(),
-  markBroadcast: vi.fn(),
   markMinted: vi.fn(),
   markError: vi.fn(),
 }));
@@ -43,7 +42,6 @@ beforeEach(() => {
   api.buildSponsoredInvoke.mockResolvedValue({ typedData: { message: { Calls: [] } } });
   api.executeSponsoredInvoke.mockResolvedValue({ transactionHash: "0xtx" });
   api.markMinting.mockResolvedValue({});
-  api.markBroadcast.mockResolvedValue({});
   api.markMinted.mockResolvedValue({});
   api.markError.mockResolvedValue({});
   wallet.signTypedData.mockResolvedValue(["0x1", "0x2"]);
@@ -164,22 +162,22 @@ describe("executeMintBatch", () => {
     expect(session.ensureSession).toHaveBeenCalledWith({}, "0xowner");
     expect(api.buildSponsoredInvoke).toHaveBeenCalledWith({ intentIds: ["i1", "i2"] });
     expect(wallet.signTypedData).toHaveBeenCalledWith({}, { message: { Calls: [] } });
-    expect(api.executeSponsoredInvoke).toHaveBeenCalledWith({ intentIds: ["i1", "i2"], typedData: { message: { Calls: [] } }, signature: ["0x1", "0x2"] });
+    expect(api.executeSponsoredInvoke).toHaveBeenCalledWith({
+      intentIds: ["i1", "i2"], typedData: { message: { Calls: [] } }, signature: ["0x1", "0x2"],
+      posts: [{ id: 1, contract: "0xcol", license: "CC BY-SA" }, { id: 2, contract: "0xcol", license: "CC BY-SA" }],
+    });
     expect(api.markMinted).toHaveBeenCalledWith(1, { tokenId: "101", txHash: "0xtx", contract: "0xcol", license: "CC BY-SA" });
     expect(api.markMinted).toHaveBeenCalledWith(2, { tokenId: "102", txHash: "0xtx", contract: "0xcol", license: "CC BY-SA" });
     expect(results).toEqual([{ postId: 1, txHash: "0xtx" }, { postId: 2, txHash: "0xtx" }]);
   });
 
-  it("records the transaction for every post before waiting for it to confirm", async () => {
-    const order = [];
-    api.markBroadcast.mockImplementation(async (postId) => { order.push(`broadcast:${postId}`); });
-    wallet.waitForConfirmation.mockImplementation(async () => { order.push("confirm"); return { isReverted: () => false }; });
+  it("sends each post with its collection and license in the order of the intents, so the site records the transaction itself", async () => {
+    await run({ entries: [{ postId: 9, license: "CC0", intentId: "i9" }, { postId: 4, license: "CC BY", intentId: "i4" }] });
 
-    await run();
-
-    expect(order).toEqual(["broadcast:1", "broadcast:2", "confirm"]);
-    expect(api.markBroadcast).toHaveBeenCalledWith(1, { txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 0 });
-    expect(api.markBroadcast).toHaveBeenCalledWith(2, { txHash: "0xtx", contract: "0xcol", license: "CC BY-SA", index: 1 });
+    expect(api.executeSponsoredInvoke.mock.calls[0][0].posts).toEqual([
+      { id: 9, contract: "0xcol", license: "CC0" },
+      { id: 4, contract: "0xcol", license: "CC BY" },
+    ]);
   });
 
   it("marks every post errored, not minted, when the transaction reverts", async () => {
@@ -202,7 +200,6 @@ describe("executeMintBatch", () => {
       { postId: 2, error: "Gas sponsorship is temporarily unavailable" },
     ]);
     expect(api.executeSponsoredInvoke).not.toHaveBeenCalled();
-    expect(api.markBroadcast).not.toHaveBeenCalled();
   });
 
   it("keeps the backend's warning when the transaction may already have been submitted", async () => {
@@ -232,15 +229,6 @@ describe("executeMintBatch", () => {
 
     expect(session.ensureSession).toHaveBeenCalledTimes(2);
     expect(results[0].error).toBe("Sign in to use gas sponsorship");
-  });
-
-  it("still confirms and marks the posts minted when recording the broadcast fails", async () => {
-    api.markBroadcast.mockRejectedValue(new Error("network down"));
-
-    const results = await run();
-
-    expect(api.markMinted).toHaveBeenCalledTimes(2);
-    expect(results).toEqual([{ postId: 1, txHash: "0xtx" }, { postId: 2, txHash: "0xtx" }]);
   });
 
   it("does not flip a confirmed mint to errored when saving the result fails", async () => {

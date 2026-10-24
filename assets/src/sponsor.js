@@ -4,12 +4,12 @@ import { signTypedData } from "./wallet.js";
 
 const SIGN_IN_REQUIRED = "invalid_request_auth";
 
-export async function sponsor(account, address, intentIds) {
+export async function sponsor(account, address, intentIds, posts) {
   const attempt = async () => {
     await ensureSession(account, address);
     const built = await buildSponsoredInvoke({ intentIds });
     const signature = await signTypedData(account, built.typedData);
-    return executeSponsoredInvoke({ intentIds, typedData: built.typedData, signature });
+    return executeSponsoredInvoke({ intentIds, typedData: built.typedData, signature, posts });
   };
   try {
     return await attempt();

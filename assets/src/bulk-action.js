@@ -2,6 +2,8 @@ import { connectWallet } from "./wallet.js";
 import { prepareMint, executeMintBatch, markError } from "./mint-flow.js";
 import { getTokenizeData } from "./api.js";
 import { assertSiteWallet } from "./site-wallet.js";
+import { assertCredits } from "./credits.js";
+import { guardLeaving } from "./leave-guard.js";
 import { __, _n, sprintf } from "@wordpress/i18n";
 
 const MAX_BATCH_SIZE = 25;
@@ -13,6 +15,16 @@ function chunk(array, size) {
 }
 
 export async function tokenizeBulk(postIds, onProgress) {
+  await assertCredits();
+  const release = guardLeaving();
+  try {
+    return await mintPosts(postIds, onProgress);
+  } finally {
+    release();
+  }
+}
+
+async function mintPosts(postIds, onProgress) {
   const data = window.tokenizeContentData;
   const { address, account } = await connectWallet();
   assertSiteWallet(address, data.walletAddress);

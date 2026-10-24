@@ -61,7 +61,7 @@ describe("api client", () => {
     ["siwsNonce", () => api.siwsNonce("0xabc"), "/auth/siws/nonce", { walletAddress: "0xabc" }],
     ["siwsVerify", () => api.siwsVerify({ walletAddress: "0xabc", nonce: "n", signature: ["0x1"] }), "/auth/siws/verify", { walletAddress: "0xabc", nonce: "n", signature: ["0x1"] }],
     ["buildSponsoredInvoke", () => api.buildSponsoredInvoke({ intentIds: ["i1"] }), "/paymaster/invoke/build", { intentIds: ["i1"] }],
-    ["executeSponsoredInvoke", () => api.executeSponsoredInvoke({ intentIds: ["i1"], typedData: { a: 1 }, signature: ["0x1"] }), "/paymaster/invoke/execute", { intentIds: ["i1"], typedData: { a: 1 }, signature: ["0x1"] }],
+    ["executeSponsoredInvoke", () => api.executeSponsoredInvoke({ intentIds: ["i1"], typedData: { a: 1 }, signature: ["0x1"], posts: [{ id: 5, contract: "0xc", license: "CC BY" }] }), "/paymaster/invoke/execute", { intentIds: ["i1"], typedData: { a: 1 }, signature: ["0x1"], posts: [{ id: 5, contract: "0xc", license: "CC BY" }] }],
     ["provisionRecipientWallet", () => api.provisionRecipientWallet({ email: "a@example.org" }), "/business/provisioning", { email: "a@example.org" }],
     ["getTokenizeData", () => api.getTokenizeData(["1", "2"]), "/tokenize-data", { ids: ["1", "2"] }],
     ["saveCategoryMap", () => api.saveCategoryMap({ 2: "0xa" }), "/settings/category-map", { map: { 2: "0xa" } }],
@@ -82,9 +82,6 @@ describe("api client", () => {
 
     await api.markMinting(5);
     expect(lastCall(fetchMock).url).toBe("/wp-json/tokenize-content/v1/posts/5/minting");
-
-    await api.markBroadcast(5, { txHash: "0xt", contract: "0xc", license: "CC BY", index: 1 });
-    expect(lastCall(fetchMock)).toMatchObject({ url: "/wp-json/tokenize-content/v1/posts/5/broadcast", body: { txHash: "0xt", contract: "0xc", license: "CC BY", index: 1 } });
 
     await api.markMinted(5, { tokenId: "9", txHash: "0xt", contract: "0xc", license: "CC BY" });
     expect(lastCall(fetchMock).url).toBe("/wp-json/tokenize-content/v1/posts/5/minted");

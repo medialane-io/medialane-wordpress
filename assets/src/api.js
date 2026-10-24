@@ -57,7 +57,7 @@ export const uploadFeaturedImage = (postId) => post(`/posts/${postId}/featured-i
 export const provisionRecipientWallet = ({ email }) => post("/business/provisioning", { email });
 export const createMintIntent = (params) => post("/intents/mint", params);
 export const buildSponsoredInvoke = ({ intentIds }) => post("/paymaster/invoke/build", { intentIds });
-export const executeSponsoredInvoke = ({ intentIds, typedData, signature }) => post("/paymaster/invoke/execute", { intentIds, typedData, signature });
+export const executeSponsoredInvoke = ({ intentIds, typedData, signature, posts }) => post("/paymaster/invoke/execute", { intentIds, typedData, signature, posts });
 
 export const createCollectionIntent = (params) => post("/intents/create-collection", params);
 export const syncCollectionTx = (txHash) => post("/collections/sync-tx", { txHash });
@@ -68,6 +68,5 @@ export const saveCategoryMap = (map) => post("/settings/category-map", { map });
 export const saveWalletAddress = (address) => post("/settings/wallet", { address });
 
 export const markMinting = (postId) => post(`/posts/${postId}/minting`);
-export const markBroadcast = (postId, data) => post(`/posts/${postId}/broadcast`, data);
 export const markMinted = (postId, data) => post(`/posts/${postId}/minted`, data);
 export const markError = (postId, message) => post(`/posts/${postId}/error`, { message });
