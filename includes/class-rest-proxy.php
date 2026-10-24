@@ -72,9 +72,14 @@ class RestProxy {
 			'callback'            => array( __CLASS__, 'forward_list_collections' ),
 			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
 		) );
-		register_rest_route( self::NAMESPACE, '/settings/collections', array(
+		register_rest_route( self::NAMESPACE, '/account', array(
+			'methods'             => 'GET',
+			'callback'            => array( __CLASS__, 'forward_account' ),
+			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
+		) );
+		register_rest_route( self::NAMESPACE, '/settings/default-collection', array(
 			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'save_collections' ),
+			'callback'            => array( __CLASS__, 'save_default_collection' ),
 			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
 		) );
 		register_rest_route( self::NAMESPACE, '/settings/category-map', array(
@@ -219,11 +224,31 @@ class RestProxy {
 		return rest_ensure_response( array( 'address' => Settings::get_wallet_address() ) );
 	}
 
-	public static function save_collections( \WP_REST_Request $request ) {
-		$contract = (string) $request->get_param( 'contract' );
-		$label    = (string) $request->get_param( 'label' );
-		Settings::save_collection_label( $contract, $label );
-		return rest_ensure_response( array( 'labels' => Settings::get_collection_labels() ) );
+	public static function save_default_collection( \WP_REST_Request $request ) {
+		$live = Settings::fetch_live_collections();
+		if ( is_wp_error( $live ) ) {
+			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
+		}
+		$wanted = (string) $request->get_param( 'contract' );
+		foreach ( $live as $collection ) {
+			if ( Settings::same_address( $wanted, $collection['contract'] ) ) {
+				Settings::set_default_collection( $collection['contract'] );
+				return rest_ensure_response( array( 'default' => Settings::get_default_collection() ) );
+			}
+		}
+		return new \WP_Error( 'tokenize_content_unknown_collection', __( 'That collection does not belong to the connected wallet.', 'tokenize-content' ), array( 'status' => 400 ) );
+	}
+
+	public static function forward_account() {
+		$key = self::api_key_or_error();
+		if ( is_wp_error( $key ) ) {
+			return $key;
+		}
+		$response = wp_remote_get( TOKENIZE_CONTENT_BACKEND_URL . '/v1/portal/me', array(
+			'headers' => array( 'x-api-key' => $key ),
+			'timeout' => 15,
+		) );
+		return self::relay( $response );
 	}
 
 	public static function save_category_map( \WP_REST_Request $request ) {
@@ -237,6 +262,7 @@ class RestProxy {
 		if ( is_wp_error( $key ) ) {
 			return $key;
 		}
+		Settings::forget_collections();
 		$owner = (string) $request->get_param( 'owner' );
 		$response = wp_remote_get( Settings::collections_url( $owner ), array(
 			'headers' => array( 'x-api-key' => $key ),

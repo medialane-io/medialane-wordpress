@@ -31,6 +31,16 @@ class Test_Metabox extends Tokenize_Test_Case {
 		return ob_get_clean();
 	}
 
+	public function test_a_minted_post_links_to_its_asset_page_and_its_transaction() {
+		$post_id = $this->factory->post->create();
+		PostMeta::save_minted( $post_id, array( 'token_id' => '42', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$html = $this->render_for( $post_id );
+
+		$this->assertStringContainsString( 'href="https://medialane.io/asset/starknet/0xdef/42"', $html );
+		$this->assertStringContainsString( 'https://voyager.online/tx/0xabc', $html );
+	}
+
 	public function test_a_minting_post_with_a_recorded_broadcast_offers_a_status_check_instead_of_tokenizing() {
 		$post_id = $this->factory->post->create();
 		PostMeta::set_minting( $post_id );

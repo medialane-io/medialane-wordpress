@@ -4,7 +4,7 @@ import { assertSiteWallet, sameAddress } from "./site-wallet.js";
 import { __ } from "@wordpress/i18n";
 import {
   createCollectionIntent, syncCollectionTx, getCollectionsByOwner,
-  saveCollectionEntry, saveCategoryMap, saveWalletAddress,
+  saveCategoryMap, saveWalletAddress, getAccount, saveDefaultCollection,
 } from "./api.js";
 
 export async function pollForNewCollection(owner, known, { attempts = 10, intervalMs = 3000 } = {}) {
@@ -17,7 +17,7 @@ export async function pollForNewCollection(owner, known, { attempts = 10, interv
   return null;
 }
 
-export async function createAndRegisterCollection(address, account, label, polling) {
+export async function createCollection(address, account, label, polling) {
   const existing = ((await getCollectionsByOwner(address)).data || []).map((c) => c.contractAddress);
 
   const intentRes = await createCollectionIntent({ owner: address, name: label, symbol: "POST" });
@@ -25,11 +25,18 @@ export async function createAndRegisterCollection(address, account, label, polli
   await waitForConfirmation(txHash);
   await syncCollectionTx(txHash).catch((err) => console.warn("Medialane: eager tx sync failed", err));
 
-  const contract = await pollForNewCollection(address, existing, polling);
-  if (contract) {
-    await saveCollectionEntry({ contract, label });
+  return pollForNewCollection(address, existing, polling);
+}
+
+export async function creditsText() {
+  try {
+    const { data } = await getAccount();
+    return Number(data.creditBalance).toLocaleString();
+  } catch (err) {
+    if (err.status === 401) return __("The API key was not accepted. Check it at portal.medialane.io/account.", "tokenize-content");
+    if (err.status === 402) return __("No credits left. Add credits at portal.medialane.io/account.", "tokenize-content");
+    return err.message || __("Could not check the account right now.", "tokenize-content");
   }
-  return contract;
 }
 
 export function collectCategoryMap(rows) {
@@ -57,6 +64,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  const credits = document.getElementById("tokenize-content-credits");
+  if (credits) {
+    creditsText().then((text) => {
+      credits.textContent = text;
+    });
+  }
+
+  document.querySelectorAll(".tokenize-content-collection-default").forEach((defaultBtn) => {
+    defaultBtn.addEventListener("click", async () => {
+      defaultBtn.disabled = true;
+      try {
+        await saveDefaultCollection(defaultBtn.dataset.contract);
+        location.reload();
+      } catch (err) {
+        defaultBtn.disabled = false;
+        alert(err.message || __("Failed to set the default collection.", "tokenize-content"));
+      }
+    });
+  });
+
   const createCollectionBtn = document.getElementById("tokenize-content-create-collection");
   const newCollectionLabel = document.getElementById("tokenize-content-new-collection-label");
   if (createCollectionBtn && newCollectionLabel) {
@@ -71,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const { address, account } = await connectWallet();
         assertSiteWallet(address, window.tokenizeContentData.walletAddress);
-        await createAndRegisterCollection(address, account, label);
+        await createCollection(address, account, label);
         location.reload();
       } catch (err) {
         createCollectionBtn.disabled = false;

@@ -66,7 +66,6 @@ describe("api client", () => {
     ["getTokenizeData", () => api.getTokenizeData(["1", "2"]), "/tokenize-data", { ids: ["1", "2"] }],
     ["saveCategoryMap", () => api.saveCategoryMap({ 2: "0xa" }), "/settings/category-map", { map: { 2: "0xa" } }],
     ["saveWalletAddress", () => api.saveWalletAddress("0xabc"), "/settings/wallet", { address: "0xabc" }],
-    ["saveCollectionEntry", () => api.saveCollectionEntry({ contract: "0xa", label: "News" }), "/settings/collections", { contract: "0xa", label: "News" }],
     ["syncCollectionTx", () => api.syncCollectionTx("0xhash"), "/collections/sync-tx", { txHash: "0xhash" }],
     ["createCollectionIntent", () => api.createCollectionIntent({ owner: "0x1", name: "News", symbol: "POST" }), "/intents/create-collection", { owner: "0x1", name: "News", symbol: "POST" }],
   ])("%s posts to the right route with the right body", async (_name, call, path, expected) => {
@@ -113,12 +112,25 @@ describe("api client", () => {
     expect(lastCall(fetchMock).opts.method).toBe("GET");
   });
 
+  it("reads the account through the site's own proxy", async () => {
+    const fetchMock = respond({ data: { creditBalance: 12 } });
+    await api.getAccount();
+    expect(lastCall(fetchMock).url).toBe("/wp-json/tokenize-content/v1/account");
+    expect(lastCall(fetchMock).opts.method).toBe("GET");
+  });
+
+  it("saves the default collection by contract", async () => {
+    const fetchMock = respond({ default: "0xabc" });
+    await api.saveDefaultCollection("0xabc");
+    expect(lastCall(fetchMock)).toMatchObject({ url: "/wp-json/tokenize-content/v1/settings/default-collection", body: { contract: "0xabc" } });
+  });
+
   it("points the RPC provider at the site's own proxy", () => {
     expect(api.rpcConfig()).toEqual({ nodeUrl: "/wp-json/tokenize-content/v1/rpc", headers: { "X-WP-Nonce": "abc" } });
   });
 
   it("exports nothing the plugin does not call", () => {
-    for (const removed of ["getToken", "saveCollectionContract", "buildSponsoredDeploy", "uploadFile"]) {
+    for (const removed of ["getToken", "saveCollectionContract", "buildSponsoredDeploy", "uploadFile", "saveCollectionEntry"]) {
       expect(api[removed]).toBeUndefined();
     }
   });

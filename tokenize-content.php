@@ -3,7 +3,7 @@
  * Plugin Name: Tokenize, Protect & License Your Content
  * Description: Turn your posts into protected, licensed IP assets with Medialane. Prove authorship, set clear licensing terms, and keep control of how your content is used.
  * Plugin URI: https://github.com/medialane-io/medialane-wordpress
- * Version: 0.3.0
+ * Version: 0.3.1
  * Requires PHP: 7.4
  * Requires at least: 6.0
  * Author: Medialane
@@ -35,6 +35,7 @@ require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-rest-proxy.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-metabox.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-bulk-action.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-asset-badge.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-posts-column.php';
 
 add_action( 'init', array( 'TokenizeContent\\PostMeta', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\Settings', 'register' ) );
@@ -42,6 +43,7 @@ add_action( 'init', array( 'TokenizeContent\\SettingsPage', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\Metabox', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\BulkAction', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\AssetBadge', 'register' ) );
+add_action( 'init', array( 'TokenizeContent\\PostsColumn', 'register' ) );
 add_action( 'rest_api_init', array( 'TokenizeContent\\RestProxy', 'register_routes' ) );
 
 register_activation_hook( __FILE__, array( 'TokenizeContent\\Settings', 'grant_default_capability' ) );

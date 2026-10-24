@@ -4,7 +4,7 @@ Tags: ip, licensing, nft, wallet, starknet
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,6 +41,12 @@ Yes. Define a `TOKENIZE_CONTENT_API_KEY` constant in `wp-config.php`.
 Every request the plugin makes is paid from the credits of the Medialane account that owns the API key.
 
 == Changelog ==
+
+= 0.3.1 =
+* Collections show their on-chain name, and you can choose the default collection from the settings page.
+* The settings page shows the credit balance and tells you when the API key is not accepted.
+* A Tokenized column on the Posts list links each post to its asset page.
+* Tokenized posts link to their asset page from the editor.
 
 = 0.3.0 =
 * Creating a collection is sponsored, like tokenizing.
