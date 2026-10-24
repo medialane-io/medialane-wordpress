@@ -5,6 +5,7 @@ import {
 } from "./api.js";
 import { sponsor } from "./sponsor.js";
 import { buildPostMetadata } from "./metadata.js";
+import { uploadSizeError } from "@medialane/sdk";
 import { __, sprintf } from "@wordpress/i18n";
 
 const saveFailed = (txHash) => sprintf(__("Minted on chain, but this site could not save it. Transaction: %s", "tokenize-content"), txHash);
@@ -17,13 +18,14 @@ export async function prepareMint({ postId, title, body, content, author, publis
   if (!authorEmail) {
     throw new Error(sprintf(__("Post %d's author has no registered email. Assign a valid author before tokenizing.", "tokenize-content"), postId));
   }
+  const fields = { title, body, content, author, publisher, url, license, licenses, aiPolicy };
+  const sizeError = uploadSizeError(new Blob([JSON.stringify(buildPostMetadata({ ...fields, imageUri: null }))]), "document");
+  if (sizeError) throw new Error(sizeError);
   const provisioned = await provisionRecipientWallet({ email: authorEmail });
   const recipient = provisioned.data.walletAddress;
 
   const image = hasImage ? (await uploadFeaturedImage(postId)).data.url : null;
-  const metadata = await uploadJson(buildPostMetadata({
-    title, body, content, author, publisher, url, imageUri: image, license, licenses, aiPolicy,
-  }));
+  const metadata = await uploadJson(buildPostMetadata({ ...fields, imageUri: image }));
 
   const intent = await createMintIntent({
     owner: address,

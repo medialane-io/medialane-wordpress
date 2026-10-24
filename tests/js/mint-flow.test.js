@@ -118,6 +118,20 @@ describe("prepareMint", () => {
     expect(api.uploadJson.mock.calls[0][0].image).toBeNull();
   });
 
+  it("refuses a post larger than the upload size before any request", async () => {
+    const { MAX_UPLOAD_BYTES } = await import("@medialane/sdk");
+    await expect(prepareMint({ ...base, content: "x".repeat(MAX_UPLOAD_BYTES) })).rejects.toThrow(/Please choose one under 90 MB/);
+    expect(api.provisionRecipientWallet).not.toHaveBeenCalled();
+    expect(api.uploadFeaturedImage).not.toHaveBeenCalled();
+    expect(api.uploadJson).not.toHaveBeenCalled();
+  });
+
+  it("measures the post in bytes, not characters", async () => {
+    const { MAX_UPLOAD_BYTES } = await import("@medialane/sdk");
+    await expect(prepareMint({ ...base, content: "é".repeat(MAX_UPLOAD_BYTES / 2 + 1) })).rejects.toThrow(/Please choose one under 90 MB/);
+    expect(api.uploadJson).not.toHaveBeenCalled();
+  });
+
   it("refuses to mint when the post's author has no registered email, before any request", async () => {
     await expect(prepareMint({ ...base, authorEmail: "" })).rejects.toThrow("no registered email");
     expect(api.provisionRecipientWallet).not.toHaveBeenCalled();

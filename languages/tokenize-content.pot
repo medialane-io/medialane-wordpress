@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-22T21:24:19+00:00\n"
+"POT-Creation-Date: 2026-10-24T09:51:21+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: tokenize-content\n"
@@ -124,41 +124,37 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-#: includes/class-rest-proxy.php:119
-#: includes/class-rest-proxy.php:295
+#: includes/class-rest-proxy.php:117
+#: includes/class-rest-proxy.php:289
 msgid "You can't tokenize a post you don't have edit access to."
 msgstr ""
 
-#: includes/class-rest-proxy.php:125
-#: includes/class-rest-proxy.php:236
+#: includes/class-rest-proxy.php:123
+#: includes/class-rest-proxy.php:230
 msgid "Collections could not be loaded right now. Try again."
 msgstr ""
 
-#: includes/class-rest-proxy.php:144
-msgid "This post is too long to tokenize in full. Switch the content setting to Excerpt."
-msgstr ""
-
-#: includes/class-rest-proxy.php:185
+#: includes/class-rest-proxy.php:179
 msgid "The transaction reference is malformed."
 msgstr ""
 
-#: includes/class-rest-proxy.php:245
+#: includes/class-rest-proxy.php:239
 msgid "That collection does not belong to the connected wallet."
 msgstr ""
 
-#: includes/class-rest-proxy.php:303
+#: includes/class-rest-proxy.php:297
 msgid "No Medialane API key configured."
 msgstr ""
 
-#: includes/class-rest-proxy.php:356
+#: includes/class-rest-proxy.php:350
 msgid "That request is not allowed."
 msgstr ""
 
-#: includes/class-rest-proxy.php:404
+#: includes/class-rest-proxy.php:398
 msgid "The featured image file could not be read."
 msgstr ""
 
-#: includes/class-rest-proxy.php:416
+#: includes/class-rest-proxy.php:410
 msgid "Medialane backend request failed."
 msgstr ""
 
@@ -389,7 +385,7 @@ msgstr ""
 #: assets/src/bulk-action.js:61
 #: assets/src/bulk-action.js:180
 #: assets/src/metabox.js:55
-#: assets/src/mint-flow.js:12
+#: assets/src/mint-flow.js:13
 msgid "Something went wrong"
 msgstr ""
 
@@ -432,22 +428,22 @@ msgstr ""
 msgid "Tokenizing…"
 msgstr ""
 
-#: assets/src/mint-flow.js:10
+#: assets/src/mint-flow.js:11
 #, js-format
 msgid "Minted on chain, but this site could not save it. Transaction: %s"
 msgstr ""
 
-#: assets/src/mint-flow.js:11
+#: assets/src/mint-flow.js:12
 #, js-format
 msgid "Transaction %s did not mint this post."
 msgstr ""
 
-#: assets/src/mint-flow.js:18
+#: assets/src/mint-flow.js:19
 #, js-format
 msgid "Post %d's author has no registered email. Assign a valid author before tokenizing."
 msgstr ""
 
-#: assets/src/mint-flow.js:59
+#: assets/src/mint-flow.js:61
 msgid "No collection configured. Connect a wallet in Medialane Settings first."
 msgstr ""
 
