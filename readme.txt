@@ -47,6 +47,7 @@ Every request the plugin makes is paid from the credits of the Medialane account
 * The settings page shows the credit balance and tells you when the API key is not accepted.
 * A Tokenized column on the Posts list links each post to its asset page.
 * Tokenized posts link to their asset page from the editor.
+* Token metadata no longer includes a Registration date.
 
 = 0.3.0 =
 * Creating a collection is sponsored, like tokenizing.
