@@ -61,4 +61,26 @@ class Test_Posts_Column extends Tokenize_Test_Case {
 
 		$this->assertSame( '', ob_get_clean() );
 	}
+
+	public function test_a_tokenized_post_edited_afterwards_says_so() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+		PostMeta::save_minted( $post_id, array( 'token_id' => '42', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$this->assertStringNotContainsString( 'Edited since it was tokenized', $this->cell( $post_id ) );
+
+		$later = gmdate( 'Y-m-d H:i:s', time() + 3600 );
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_modified' => $later, 'post_modified_gmt' => $later ), array( 'ID' => $post_id ) );
+		clean_post_cache( $post_id );
+
+		$this->assertStringContainsString( 'Edited since it was tokenized', $this->cell( $post_id ) );
+	}
+
+	public function test_the_column_is_hooked_on_the_pages_list_too() {
+		PostsColumn::register();
+
+		$this->assertNotFalse( has_filter( 'manage_page_posts_columns', array( PostsColumn::class, 'add_column' ) ) );
+		$this->assertNotFalse( has_action( 'manage_page_posts_custom_column', array( PostsColumn::class, 'render_column' ) ) );
+	}
 }

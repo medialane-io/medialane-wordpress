@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sprintf as stubSprintf, __ as stubGettext, _n as stubPlural } from "../stubs/wp-i18n.js";
 
-const bundles = ["settings", "metabox", "bulk-action"];
+const bundles = ["settings", "metabox", "bulk-action", "tokenize-page"];
 
 describe("built scripts", () => {
   beforeEach(() => {
@@ -15,6 +15,13 @@ describe("built scripts", () => {
     const code = readFileSync(join(import.meta.dirname, "../../assets/dist", `${name}.js`), "utf8");
 
     expect(() => new Function(code)()).not.toThrow();
+  });
+
+  it("badge-block.js takes its translator from wp.i18n instead of bundling one", () => {
+    const code = readFileSync(join(import.meta.dirname, "../../assets/dist/badge-block.js"), "utf8");
+
+    expect(code).toContain("window.wp.i18n");
+    expect(code).not.toContain("@wordpress/i18n");
   });
 
   it.each(bundles)("%s.js takes its translator from wp.i18n instead of bundling one", (name) => {

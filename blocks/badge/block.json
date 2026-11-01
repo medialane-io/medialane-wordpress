@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 2,
+  "name": "tokenize-content/badge",
+  "title": "Tokenized asset badge",
+  "category": "widgets",
+  "icon": "shield",
+  "description": "Shows the asset badge of a tokenized post.",
+  "textdomain": "tokenize-content",
+  "usesContext": [ "postId" ],
+  "editorScript": "tokenize-content-badge-block",
+  "editorStyle": "tokenize-content-badge",
+  "style": "tokenize-content-badge"
+}

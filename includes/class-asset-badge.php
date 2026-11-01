@@ -9,16 +9,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 class AssetBadge {
 
 	const ASSET_BASE_URL = 'https://medialane.io/asset/starknet';
+	const BLOCK          = 'tokenize-content/badge';
+	const SHORTCODE      = 'tokenize_content_badge';
+	const STYLE          = 'tokenize-content-badge';
+	const BLOCK_SCRIPT   = 'tokenize-content-badge-block';
 
 	public static function register() {
 		add_filter( 'the_content', array( __CLASS__, 'append_to_content' ) );
+		add_shortcode( self::SHORTCODE, array( __CLASS__, 'render_shortcode' ) );
+		wp_register_style( self::STYLE, TOKENIZE_CONTENT_PLUGIN_URL . 'assets/badge.css', array(), TOKENIZE_CONTENT_PLUGIN_VERSION );
+		wp_register_script( self::BLOCK_SCRIPT, TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/badge-block.js', array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-server-side-render', 'wp-i18n' ), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
+		wp_set_script_translations( self::BLOCK_SCRIPT, 'tokenize-content' );
+		register_block_type( TOKENIZE_CONTENT_PLUGIN_DIR . 'blocks/badge', array(
+			'render_callback' => array( __CLASS__, 'render_block' ),
+		) );
 	}
 
 	public static function append_to_content( string $content ): string {
-		if ( ! is_singular( 'post' ) || ! in_the_loop() || ! is_main_query() ) {
+		$post = get_post();
+		if ( ! $post || ! is_singular( Eligibility::post_types() ) || ! in_the_loop() || ! is_main_query() ) {
 			return $content;
 		}
-		return $content . self::render( get_the_ID() );
+		if ( has_block( self::BLOCK, $post ) || has_shortcode( $post->post_content, self::SHORTCODE ) ) {
+			return $content;
+		}
+		return $content . self::render( $post->ID );
+	}
+
+	public static function render_block( array $attributes = array(), string $content = '', $block = null ): string {
+		$post_id = $block && ! empty( $block->context['postId'] ) ? (int) $block->context['postId'] : (int) get_the_ID();
+		return self::render( $post_id );
+	}
+
+	public static function render_shortcode(): string {
+		return self::render( (int) get_the_ID() );
 	}
 
 	public static function url_for_post( int $post_id ): string {
@@ -41,8 +65,8 @@ class AssetBadge {
 		$license = PostMeta::get_license( $post_id );
 		$image     = get_the_post_thumbnail( $post_id, 'medium' );
 
+		wp_enqueue_style( self::STYLE );
 		ob_start();
-		self::print_styles_once();
 		?>
 		<div class="tokenize-content-asset-badge">
 			<?php if ( $image ) : ?>
@@ -61,23 +85,5 @@ class AssetBadge {
 		</div>
 		<?php
 		return (string) ob_get_clean();
-	}
-
-	private static function print_styles_once() {
-		static $printed = false;
-		if ( $printed ) {
-			return;
-		}
-		$printed = true;
-		?>
-		<style>
-			.tokenize-content-asset-badge { display: flex; gap: 1.25rem; align-items: center; margin: 2rem 0; padding: 1.25rem; border: 1px solid #e2e2e2; border-radius: 8px; background: #fafafa; }
-			.tokenize-content-asset-badge__image img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 6px; }
-			.tokenize-content-asset-badge__eyebrow { margin: 0 0 0.25rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6b6b6b; }
-			.tokenize-content-asset-badge__title { margin: 0 0 0.25rem; font-weight: 600; }
-			.tokenize-content-asset-badge__license { margin: 0 0 0.5rem; font-size: 0.875rem; color: #6b6b6b; }
-			.tokenize-content-asset-badge__link { font-size: 0.875rem; font-weight: 600; text-decoration: none; }
-		</style>
-		<?php
 	}
 }

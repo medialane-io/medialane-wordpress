@@ -1,0 +1,6 @@
+.tokenize-content-asset-badge { display: flex; gap: 1.25rem; align-items: center; margin: 2rem 0; padding: 1.25rem; border: 1px solid #e2e2e2; border-radius: 8px; background: #fafafa; }
+.tokenize-content-asset-badge__image img { display: block; width: 96px; height: 96px; object-fit: cover; border-radius: 6px; }
+.tokenize-content-asset-badge__eyebrow { margin: 0 0 0.25rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6b6b6b; }
+.tokenize-content-asset-badge__title { margin: 0 0 0.25rem; font-weight: 600; }
+.tokenize-content-asset-badge__license { margin: 0 0 0.5rem; font-size: 0.875rem; color: #6b6b6b; }
+.tokenize-content-asset-badge__link { font-size: 0.875rem; font-weight: 600; text-decoration: none; }

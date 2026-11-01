@@ -77,4 +77,78 @@ class Test_Asset_Badge extends Tokenize_Test_Case {
 		$this->assertStringContainsString( 'Original content', $output );
 		$this->assertStringContainsString( 'https://medialane.io/asset/starknet/0xdef/42', $output );
 	}
+
+	private function minted_post( array $args = array() ): int {
+		$post_id = $this->factory->post->create( $args );
+		PostMeta::save_minted( $post_id, array( 'token_id' => '42', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY-SA' ) );
+		return $post_id;
+	}
+
+	private function the_content_on_the_page_of( int $post_id ): string {
+		$this->go_to( get_permalink( $post_id ) );
+		$output = '';
+		while ( have_posts() ) {
+			the_post();
+			$output = apply_filters( 'the_content', get_the_content() );
+		}
+		return $output;
+	}
+
+	public function test_the_badge_brings_its_stylesheet_instead_of_printing_one() {
+		$post_id = $this->minted_post();
+
+		$html = AssetBadge::render( $post_id );
+
+		$this->assertStringNotContainsString( '<style', $html );
+		$this->assertTrue( wp_style_is( AssetBadge::STYLE, 'enqueued' ) );
+	}
+
+	public function test_a_page_that_is_tokenized_gets_the_badge_after_its_content() {
+		$page = $this->minted_post( array( 'post_type' => 'page', 'post_content' => 'About us' ) );
+
+		$output = $this->the_content_on_the_page_of( $page );
+
+		$this->assertStringContainsString( 'About us', $output );
+		$this->assertStringContainsString( 'https://medialane.io/asset/starknet/0xdef/42', $output );
+	}
+
+	public function test_the_shortcode_shows_the_badge_of_the_current_post() {
+		$post_id = $this->minted_post( array( 'post_content' => 'Intro [tokenize_content_badge] Outro' ) );
+
+		$output = $this->the_content_on_the_page_of( $post_id );
+
+		$this->assertSame( 1, substr_count( $output, 'tokenize-content-asset-badge"' ) );
+		$this->assertLessThan( strpos( $output, 'Outro' ), strpos( $output, 'tokenize-content-asset-badge"' ) );
+	}
+
+	public function test_the_shortcode_shows_nothing_for_a_post_that_is_not_tokenized() {
+		$post_id = $this->factory->post->create( array( 'post_content' => 'Intro [tokenize_content_badge] Outro' ) );
+
+		$this->assertStringNotContainsString( 'tokenize-content-asset-badge', $this->the_content_on_the_page_of( $post_id ) );
+	}
+
+	public function test_the_block_shows_the_badge_where_it_is_placed_and_only_once() {
+		$post_id = $this->minted_post( array( 'post_content' => "<!-- wp:paragraph --><p>Intro</p><!-- /wp:paragraph -->\n<!-- wp:tokenize-content/badge /-->\n<!-- wp:paragraph --><p>Outro</p><!-- /wp:paragraph -->" ) );
+
+		$output = $this->the_content_on_the_page_of( $post_id );
+
+		$this->assertSame( 1, substr_count( $output, 'tokenize-content-asset-badge"' ) );
+		$this->assertLessThan( strpos( $output, 'Outro' ), strpos( $output, 'tokenize-content-asset-badge"' ) );
+	}
+
+	public function test_the_block_is_registered_with_context_and_the_editor_script() {
+		$type = WP_Block_Type_Registry::get_instance()->get_registered( AssetBadge::BLOCK );
+
+		$this->assertNotNull( $type );
+		$this->assertContains( 'postId', $type->uses_context );
+		$this->assertSame( array( AssetBadge::BLOCK_SCRIPT ), $type->editor_script_handles );
+	}
+
+	public function test_the_block_shows_the_badge_of_the_post_in_its_context() {
+		$post_id = $this->minted_post( array( 'post_title' => 'Context Post' ) );
+
+		$block = new WP_Block( array( 'blockName' => AssetBadge::BLOCK ), array( 'postId' => $post_id ) );
+
+		$this->assertStringContainsString( 'Context Post', $block->render() );
+	}
 }

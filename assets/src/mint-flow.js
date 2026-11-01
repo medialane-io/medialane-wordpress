@@ -34,7 +34,7 @@ export async function prepareMint({ postId, title, body, content, author, publis
     tokenUri: metadata.data.url,
     royaltyBps: 0,
   });
-  return { postId, license, intentId: intent.data.id };
+  return { postId, license, aiPolicy, intentId: intent.data.id };
 }
 
 async function settle({ postId, license }, txHash, contract, tokenId) {
@@ -64,7 +64,7 @@ export async function executeMintBatch({ account, address, collectionContract, e
 
   let txHash;
   try {
-    const posts = entries.map((e) => ({ id: e.postId, contract: collectionContract, license: e.license }));
+    const posts = entries.map((e) => ({ id: e.postId, contract: collectionContract, license: e.license, aiPolicy: e.aiPolicy }));
     const executed = await sponsor(account, address, entries.map((e) => e.intentId), posts);
     txHash = executed.transactionHash;
   } catch (err) {

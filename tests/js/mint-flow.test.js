@@ -67,8 +67,8 @@ describe("prepareMint", () => {
     });
   });
 
-  it("returns the post, its license and the intent to sponsor", async () => {
-    await expect(prepareMint(base)).resolves.toEqual({ postId: 42, license: "CC BY-SA", intentId: "intent-1" });
+  it("returns the post, its license, its AI policy and the intent to sponsor", async () => {
+    await expect(prepareMint({ ...base, aiPolicy: "Not Allowed" })).resolves.toEqual({ postId: 42, license: "CC BY-SA", aiPolicy: "Not Allowed", intentId: "intent-1" });
   });
 
   it("uploads the license as structured attributes, never as a flat field", async () => {
@@ -146,8 +146,8 @@ describe("prepareMint", () => {
 
 describe("executeMintBatch", () => {
   const entries = [
-    { postId: 1, license: "CC BY-SA", intentId: "i1" },
-    { postId: 2, license: "CC BY-SA", intentId: "i2" },
+    { postId: 1, license: "CC BY-SA", aiPolicy: "Allowed", intentId: "i1" },
+    { postId: 2, license: "CC BY-SA", aiPolicy: "Not Allowed", intentId: "i2" },
   ];
   const run = (overrides = {}) => executeMintBatch({ account: {}, address: "0xowner", collectionContract: "0xcol", entries, ...overrides });
 
@@ -164,7 +164,7 @@ describe("executeMintBatch", () => {
     expect(wallet.signTypedData).toHaveBeenCalledWith({}, { message: { Calls: [] } });
     expect(api.executeSponsoredInvoke).toHaveBeenCalledWith({
       intentIds: ["i1", "i2"], typedData: { message: { Calls: [] } }, signature: ["0x1", "0x2"],
-      posts: [{ id: 1, contract: "0xcol", license: "CC BY-SA" }, { id: 2, contract: "0xcol", license: "CC BY-SA" }],
+      posts: [{ id: 1, contract: "0xcol", license: "CC BY-SA", aiPolicy: "Allowed" }, { id: 2, contract: "0xcol", license: "CC BY-SA", aiPolicy: "Not Allowed" }],
     });
     expect(api.markMinted).toHaveBeenCalledWith(1, { tokenId: "101", txHash: "0xtx", contract: "0xcol", license: "CC BY-SA" });
     expect(api.markMinted).toHaveBeenCalledWith(2, { tokenId: "102", txHash: "0xtx", contract: "0xcol", license: "CC BY-SA" });

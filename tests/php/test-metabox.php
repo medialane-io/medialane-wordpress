@@ -41,6 +41,31 @@ class Test_Metabox extends Tokenize_Test_Case {
 		$this->assertStringContainsString( 'https://voyager.online/tx/0xabc', $html );
 	}
 
+	public function test_a_minted_post_edited_afterwards_says_so() {
+		$post_id = $this->factory->post->create( array( 'post_date' => '2026-01-01 10:00:00' ) );
+		PostMeta::set_minting( $post_id );
+		PostMeta::save_minted( $post_id, array( 'token_id' => '42', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$this->assertStringNotContainsString( 'Edited since it was tokenized', $this->render_for( $post_id ) );
+
+		$later = gmdate( 'Y-m-d H:i:s', time() + 3600 );
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_modified' => $later, 'post_modified_gmt' => $later ), array( 'ID' => $post_id ) );
+		clean_post_cache( $post_id );
+
+		$this->assertStringContainsString( 'Edited since it was tokenized', $this->render_for( $post_id ) );
+	}
+
+	public function test_the_box_is_added_to_every_tokenizable_type() {
+		global $wp_meta_boxes;
+		set_current_screen( 'edit-page' );
+		Metabox::add();
+
+		$this->assertArrayHasKey( 'tokenize-content-mint', $wp_meta_boxes['post']['side']['default'] );
+		$this->assertArrayHasKey( 'tokenize-content-mint', $wp_meta_boxes['page']['side']['default'] );
+		set_current_screen( 'front' );
+	}
+
 	public function test_a_minting_post_with_a_recorded_broadcast_offers_a_status_check_instead_of_tokenizing() {
 		$post_id = $this->factory->post->create();
 		PostMeta::set_minting( $post_id );
@@ -85,7 +110,7 @@ class Test_Metabox extends Tokenize_Test_Case {
 		$html = $this->render_for( $draft );
 
 		$this->assertStringNotContainsString( 'tokenize-content-tokenize-btn', $html );
-		$this->assertStringContainsString( 'Only published posts without a password can be tokenized.', $html );
+		$this->assertStringContainsString( 'Only published content without a password can be tokenized.', $html );
 	}
 
 	public function test_enqueue_hands_the_client_the_license_terms() {

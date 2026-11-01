@@ -33,18 +33,25 @@ require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-settings.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-mint-check.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-settings-page.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-rest-proxy.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-post-status-routes.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-scripts.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-metabox.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-bulk-action.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-asset-badge.php';
 require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-posts-column.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-head-meta.php';
+require_once TOKENIZE_CONTENT_PLUGIN_DIR . 'includes/class-tokenize-page.php';
 
 add_action( 'init', array( 'TokenizeContent\\PostMeta', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\Settings', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\SettingsPage', 'register' ) );
 add_action( 'init', array( 'TokenizeContent\\Metabox', 'register' ) );
-add_action( 'init', array( 'TokenizeContent\\BulkAction', 'register' ) );
+add_action( 'init', array( 'TokenizeContent\\BulkAction', 'register' ), 99 );
 add_action( 'init', array( 'TokenizeContent\\AssetBadge', 'register' ) );
-add_action( 'init', array( 'TokenizeContent\\PostsColumn', 'register' ) );
+add_action( 'init', array( 'TokenizeContent\\HeadMeta', 'register' ) );
+add_action( 'init', array( 'TokenizeContent\\TokenizePage', 'register' ) );
+add_action( 'init', array( 'TokenizeContent\\PostsColumn', 'register' ), 99 );
 add_action( 'rest_api_init', array( 'TokenizeContent\\RestProxy', 'register_routes' ) );
+add_action( 'rest_api_init', array( 'TokenizeContent\\PostStatusRoutes', 'register_routes' ) );
 
 register_activation_hook( __FILE__, array( 'TokenizeContent\\Settings', 'grant_default_capability' ) );
