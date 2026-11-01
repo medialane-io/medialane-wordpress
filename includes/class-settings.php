@@ -43,6 +43,17 @@ class Settings {
 		return array_filter( self::LICENSES );
 	}
 
+	public static function script_data(): array {
+		return array(
+			'restUrl'         => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
+			'nonce'           => wp_create_nonce( 'wp_rest' ),
+			'walletAddress'   => self::get_wallet_address(),
+			'licenseDefault'  => self::get_license_default(),
+			'aiPolicyDefault' => self::get_ai_policy_default(),
+			'licenses'        => self::license_terms(),
+		);
+	}
+
 	public static function uninstall() {
 		global $wpdb;
 		foreach ( ( new \ReflectionClass( __CLASS__ ) )->getConstants() as $name => $option ) {
@@ -249,7 +260,7 @@ class Settings {
 	}
 
 	public static function get_ai_policy_default(): string {
-		$policy = get_option( self::OPTION_AI_POLICY_DEFAULT, '' );
-		return $policy ? (string) $policy : 'Allowed';
+		$policy = (string) get_option( self::OPTION_AI_POLICY_DEFAULT, '' );
+		return in_array( $policy, self::AI_POLICIES, true ) ? $policy : 'Allowed';
 	}
 }

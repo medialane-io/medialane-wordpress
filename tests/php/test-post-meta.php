@@ -95,4 +95,66 @@ class Test_Post_Meta extends Tokenize_Test_Case {
 			$this->assertFalse( current_user_can( 'edit_post_meta', $post_id, $key ), $key );
 		}
 	}
+
+	public function test_set_broadcast_keeps_the_ai_policy_the_post_was_tokenized_with() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+
+		PostMeta::set_broadcast( $post_id, array( 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY', 'ai_policy' => 'Not Allowed', 'batch_index' => '0' ) );
+
+		$this->assertSame( 'Not Allowed', PostMeta::get_ai_policy( $post_id ) );
+	}
+
+	public function test_the_ai_policy_is_empty_for_a_post_tokenized_without_one() {
+		$post_id = $this->factory->post->create();
+		PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$this->assertSame( '', PostMeta::get_ai_policy( $post_id ) );
+	}
+
+	private function edit_later( int $post_id ) {
+		$later = gmdate( 'Y-m-d H:i:s', time() + 3600 );
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_modified' => $later, 'post_modified_gmt' => $later ), array( 'ID' => $post_id ) );
+		clean_post_cache( $post_id );
+	}
+
+	public function test_a_post_is_not_edited_since_it_was_tokenized_until_it_changes() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+		PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$this->assertFalse( PostMeta::is_edited_since_tokenized( $post_id ) );
+
+		$this->edit_later( $post_id );
+
+		$this->assertTrue( PostMeta::is_edited_since_tokenized( $post_id ) );
+	}
+
+	public function test_a_post_tokenized_before_the_time_was_recorded_is_never_reported_as_edited() {
+		$post_id = $this->factory->post->create();
+		PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+		$this->edit_later( $post_id );
+
+		$this->assertFalse( PostMeta::is_edited_since_tokenized( $post_id ) );
+	}
+
+	public function test_a_post_that_is_not_tokenized_is_never_reported_as_edited() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+		$this->edit_later( $post_id );
+
+		$this->assertFalse( PostMeta::is_edited_since_tokenized( $post_id ) );
+	}
+
+	public function test_a_new_attempt_takes_the_time_again() {
+		$post_id = $this->factory->post->create();
+		PostMeta::set_minting( $post_id );
+		$this->edit_later( $post_id );
+		PostMeta::save_error( $post_id, 'failed' );
+		PostMeta::set_minting( $post_id );
+		PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$this->assertFalse( PostMeta::is_edited_since_tokenized( $post_id ) );
+	}
 }

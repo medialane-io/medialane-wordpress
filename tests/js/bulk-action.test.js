@@ -27,7 +27,7 @@ vi.mock("../../assets/src/api.js", () => ({
 const api = await import("../../assets/src/api.js");
 const wallet = await import("../../assets/src/wallet.js");
 const credits = await import("../../assets/src/credits.js");
-const { tokenizeBulk, buildStatusPanel } = await import("../../assets/src/bulk-action.js");
+const { tokenizeBulk, buildStatusPanel } = await import("../../assets/src/bulk-tokenize.js");
 
 const post = (n, extra = {}) => ({
   title: `Post ${n}`, description: `body ${n}`, hasImage: false,

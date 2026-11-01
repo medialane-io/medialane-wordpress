@@ -21,7 +21,7 @@ vi.mock("starknet", () => ({ RpcProvider: class {}, WalletAccount: {}, stark: {}
 const { assertSiteWallet } = await import("../../assets/src/site-wallet.js");
 const { connectWallet } = await import("../../assets/src/wallet.js");
 const { prepareMint, executeMintBatch } = await import("../../assets/src/mint-flow.js");
-const { buildStatusPanel, summaryLine, confirmMessage } = await import("../../assets/src/bulk-action.js");
+const { buildStatusPanel, summaryLine, confirmMessage } = await import("../../assets/src/bulk-tokenize.js");
 
 describe("messages shown to people go through the translator", () => {
   it("wallet mismatch", () => {

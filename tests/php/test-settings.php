@@ -147,6 +147,11 @@ class Test_Settings extends Tokenize_Test_Case {
 		$this->assertSame( 'Allowed', Settings::get_ai_policy_default() );
 	}
 
+	public function test_get_ai_policy_default_ignores_a_value_that_is_not_a_policy() {
+		update_option( Settings::OPTION_AI_POLICY_DEFAULT, 'Whatever' );
+		$this->assertSame( 'Allowed', Settings::get_ai_policy_default() );
+	}
+
 	public function test_get_ai_policy_default_reads_the_saved_option() {
 		update_option( Settings::OPTION_AI_POLICY_DEFAULT, 'Not Allowed' );
 		$this->assertSame( 'Not Allowed', Settings::get_ai_policy_default() );

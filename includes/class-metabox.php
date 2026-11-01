@@ -14,7 +14,7 @@ class Metabox {
 	}
 
 	public static function add() {
-		add_meta_box( 'tokenize-content-mint', __( 'Tokenize & Protect', 'tokenize-content' ), array( __CLASS__, 'render' ), 'post', 'side', 'default' );
+		add_meta_box( 'tokenize-content-mint', __( 'Tokenize & Protect', 'tokenize-content' ), array( __CLASS__, 'render' ), Eligibility::post_types(), 'side', 'default' );
 	}
 
 	public static function render( \WP_Post $post ) {
@@ -24,6 +24,9 @@ class Metabox {
 			<div class="tokenize-content-metabox-body">
 				<?php if ( PostMeta::STATUS_MINTED === $status ) : ?>
 					<p><?php esc_html_e( 'Minted', 'tokenize-content' ); ?></p>
+					<?php if ( PostMeta::is_edited_since_tokenized( $post->ID ) ) : ?>
+						<p><?php esc_html_e( 'Edited since it was tokenized', 'tokenize-content' ); ?></p>
+					<?php endif; ?>
 					<?php $asset_url = AssetBadge::url_for_post( $post->ID ); ?>
 					<?php if ( $asset_url ) : ?>
 						<p><a href="<?php echo esc_url( $asset_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View on Medialane', 'tokenize-content' ); ?></a></p>
@@ -63,10 +66,10 @@ class Metabox {
 							<?php endforeach; ?>
 						</select>
 					</p>
-					<p><textarea id="tokenize-content-license-custom" placeholder="<?php esc_attr_e( 'Custom license terms (used if License = Custom)', 'tokenize-content' ); ?>" style="display:none;width:100%;"></textarea></p>
+					<p><textarea id="tokenize-content-license-custom" placeholder="<?php esc_attr_e( 'Custom license terms (used if License = Custom)', 'tokenize-content' ); ?>" class="large-text" hidden></textarea></p>
 					<button type="button" class="button button-primary" id="tokenize-content-tokenize-btn"><?php esc_html_e( 'Tokenize Post', 'tokenize-content' ); ?></button>
 					<?php if ( PostMeta::STATUS_ERROR === $status ) : ?>
-						<p class="tokenize-content-error" style="color:#b32d2e;"><?php echo esc_html( PostMeta::get_error( $post->ID ) ); ?></p>
+						<div class="notice notice-error inline tokenize-content-error"><p><?php echo esc_html( PostMeta::get_error( $post->ID ) ); ?></p></div>
 					<?php endif; ?>
 				<?php endif; ?>
 			</div>
@@ -79,16 +82,9 @@ class Metabox {
 			return;
 		}
 		global $post;
-		wp_enqueue_script( 'tokenize-content-metabox', TOKENIZE_CONTENT_PLUGIN_URL . 'assets/dist/metabox.js', array( 'wp-i18n' ), TOKENIZE_CONTENT_PLUGIN_VERSION, true );
-		wp_set_script_translations( 'tokenize-content-metabox', 'tokenize-content' );
-		wp_localize_script( 'tokenize-content-metabox', 'tokenizeContentData', array(
-			'restUrl'            => esc_url_raw( rest_url( 'tokenize-content/v1' ) ),
-			'nonce'              => wp_create_nonce( 'wp_rest' ),
-			'walletAddress'      => Settings::get_wallet_address(),
-			'licenseDefault'     => Settings::get_license_default(),
-			'aiPolicyDefault'    => Settings::get_ai_policy_default(),
-			'licenses'           => Settings::license_terms(),
-			'postId'           => $post ? $post->ID : 0,
+		Scripts::enqueue( 'tokenize-content-metabox', 'metabox.js', array_merge(
+			Settings::script_data(),
+			array( 'postId' => $post ? $post->ID : 0 )
 		) );
 	}
 }

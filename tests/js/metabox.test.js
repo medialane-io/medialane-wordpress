@@ -11,7 +11,7 @@ const flow = await import("../../assets/src/mint-flow.js");
 const api = await import("../../assets/src/api.js");
 const credits = await import("../../assets/src/credits.js");
 const editor = await import("../../assets/src/editor.js");
-const { tokenizePost } = await import("../../assets/src/metabox.js");
+const { tokenizePost, showError } = await import("../../assets/src/metabox.js");
 
 function leave() {
   const event = new Event("beforeunload", { cancelable: true });
@@ -67,5 +67,26 @@ describe("tokenizePost", () => {
 
     await expect(tokenizePost("7")).rejects.toThrow("reverted");
     expect(leave()).toBe(false);
+  });
+});
+
+describe("showError", () => {
+  beforeEach(() => {
+    document.body.innerHTML = '<div class="tokenize-content-metabox-body"><div class="notice notice-error inline tokenize-content-error"><p>Old</p></div></div>';
+  });
+
+  it("shows the reason in the panel as text, in place of an earlier one", () => {
+    showError("<b>Reverted</b>");
+
+    const notices = document.querySelectorAll(".tokenize-content-error");
+    expect(notices).toHaveLength(1);
+    expect(notices[0].textContent).toBe("<b>Reverted</b>");
+    expect(notices[0].querySelector("b")).toBeNull();
+  });
+
+  it("does nothing on a page without the panel", () => {
+    document.body.innerHTML = "";
+
+    expect(() => showError("Reverted")).not.toThrow();
   });
 });

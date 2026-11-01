@@ -7,6 +7,18 @@ import { hasUnsavedChanges } from "./editor.js";
 import { guardLeaving } from "./leave-guard.js";
 import { __ } from "@wordpress/i18n";
 
+export function showError(message) {
+  const body = document.querySelector(".tokenize-content-metabox-body");
+  if (!body) return;
+  body.querySelector(".tokenize-content-error")?.remove();
+  const notice = document.createElement("div");
+  notice.className = "notice notice-error inline tokenize-content-error";
+  const text = document.createElement("p");
+  text.textContent = message;
+  notice.appendChild(text);
+  body.appendChild(notice);
+}
+
 export async function tokenizePost(postId) {
   if (hasUnsavedChanges()) {
     throw new Error(__("Save the post before tokenizing. The token is made from the saved version.", "tokenize-content"));
@@ -68,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         btn.disabled = false;
         btn.textContent = __("Tokenize Post", "tokenize-content");
-        alert(err.message || __("Something went wrong", "tokenize-content"));
+        showError(err.message || __("Something went wrong", "tokenize-content"));
       }
     });
   }
@@ -93,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const licenseCustom = document.getElementById("tokenize-content-license-custom");
   if (licenseSelect) {
     licenseSelect.addEventListener("change", () => {
-      licenseCustom.style.display = licenseSelect.value === "Custom" ? "block" : "none";
+      licenseCustom.hidden = licenseSelect.value !== "Custom";
     });
   }
 });

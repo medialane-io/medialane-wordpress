@@ -13,6 +13,8 @@ await esbuild.build({
     settings: "assets/src/settings.js",
     metabox: "assets/src/metabox.js",
     "bulk-action": "assets/src/bulk-action.js",
+    "tokenize-page": "assets/src/tokenize-page.js",
+    "badge-block": "assets/src/badge-block.js",
   },
   bundle: true,
   outdir: "assets/dist",

@@ -11,8 +11,10 @@ class PostsColumn {
 	const COLUMN = 'tokenize_content_status';
 
 	public static function register() {
-		add_filter( 'manage_post_posts_columns', array( __CLASS__, 'add_column' ) );
-		add_action( 'manage_post_posts_custom_column', array( __CLASS__, 'render_column' ), 10, 2 );
+		foreach ( Eligibility::post_types() as $type ) {
+			add_filter( "manage_{$type}_posts_columns", array( __CLASS__, 'add_column' ) );
+			add_action( "manage_{$type}_posts_custom_column", array( __CLASS__, 'render_column' ), 10, 2 );
+		}
 	}
 
 	public static function add_column( array $columns ): array {
@@ -33,6 +35,10 @@ class PostsColumn {
 					printf( '<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>', esc_url( $url ), esc_html__( 'View on Medialane', 'tokenize-content' ) );
 				} else {
 					esc_html_e( 'Tokenized', 'tokenize-content' );
+				}
+				if ( PostMeta::is_edited_since_tokenized( $post_id ) ) {
+					echo '<br />';
+					esc_html_e( 'Edited since it was tokenized', 'tokenize-content' );
 				}
 				break;
 			case PostMeta::STATUS_MINTING:

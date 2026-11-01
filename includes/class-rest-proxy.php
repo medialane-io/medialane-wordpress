@@ -87,21 +87,6 @@ class RestProxy {
 			'callback'            => array( __CLASS__, 'save_category_map' ),
 			'permission_callback' => array( __CLASS__, 'check_admin_permission' ),
 		) );
-		register_rest_route( self::NAMESPACE, '/posts/(?P<id>\d+)/minting', array(
-			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'save_minting' ),
-			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
-		) );
-		register_rest_route( self::NAMESPACE, '/posts/(?P<id>\d+)/minted', array(
-			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'save_minted' ),
-			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
-		) );
-		register_rest_route( self::NAMESPACE, '/posts/(?P<id>\d+)/error', array(
-			'methods'             => 'POST',
-			'callback'            => array( __CLASS__, 'save_error' ),
-			'permission_callback' => array( __CLASS__, 'check_tokenize_permission' ),
-		) );
 	}
 
 	public static function tokenize_data( \WP_REST_Request $request ) {
@@ -115,13 +100,13 @@ class RestProxy {
 
 		$live = Settings::fetch_live_collections();
 		if ( is_wp_error( $live ) ) {
-			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
+			return self::collections_unavailable();
 		}
 		$scope = Settings::get_content_scope();
 		$posts = array();
 		foreach ( $ids as $id ) {
 			$post = get_post( $id );
-			if ( ! $post || 'post' !== $post->post_type ) {
+			if ( ! $post || ! Eligibility::supports_type( $post->post_type ) ) {
 				continue;
 			}
 			if ( ! Eligibility::is_tokenizable( $post ) ) {
@@ -150,82 +135,6 @@ class RestProxy {
 		return rest_ensure_response( array( 'posts' => $posts ) );
 	}
 
-	public static function save_minting( \WP_REST_Request $request ) {
-		$post_id = self::post_id( $request );
-		$post    = get_post( $post_id );
-		if ( ! $post || ! Eligibility::is_tokenizable( $post ) ) {
-			return new \WP_Error( 'tokenize_content_not_eligible', Eligibility::message(), array( 'status' => 422 ) );
-		}
-		if ( Eligibility::is_tokenized( $post_id ) ) {
-			return new \WP_Error( 'tokenize_content_already_tokenized', Eligibility::tokenized_message(), array( 'status' => 409 ) );
-		}
-		PostMeta::set_minting( $post_id );
-		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
-	}
-
-	private static function malformed_reference( \WP_REST_Request $request, array $fields ) {
-		$patterns = array(
-			'txHash'   => '/^0x[0-9a-fA-F]+$/',
-			'contract' => '/^0x[0-9a-fA-F]+$/',
-			'tokenId'  => '/^\d+$/',
-		);
-		foreach ( $fields as $field ) {
-			if ( ! preg_match( $patterns[ $field ], (string) $request->get_param( $field ) ) ) {
-				return new \WP_Error( 'tokenize_content_invalid_reference', __( 'The transaction reference is malformed.', 'tokenize-content' ), array( 'status' => 400 ) );
-			}
-		}
-		return null;
-	}
-
-	public static function save_minted( \WP_REST_Request $request ) {
-		$invalid = self::malformed_reference( $request, array( 'txHash', 'contract', 'tokenId' ) );
-		if ( $invalid ) {
-			return $invalid;
-		}
-		$post_id = self::post_id( $request );
-		if ( Eligibility::is_tokenized( $post_id ) ) {
-			return new \WP_Error( 'tokenize_content_already_tokenized', Eligibility::tokenized_message(), array( 'status' => 409 ) );
-		}
-		$tx_hash  = PostMeta::get_tx_hash( $post_id );
-		$contract = PostMeta::get_contract( $post_id );
-		if ( PostMeta::STATUS_MINTING !== PostMeta::get_status( $post_id ) || '' === $tx_hash || '' === $contract ) {
-			return new \WP_Error( 'tokenize_content_not_minting', __( 'This post is not waiting for a token.', 'tokenize-content' ), array( 'status' => 409 ) );
-		}
-		if ( ! Settings::same_address( $tx_hash, (string) $request->get_param( 'txHash' ) ) || ! Settings::same_address( $contract, (string) $request->get_param( 'contract' ) ) ) {
-			return new \WP_Error( 'tokenize_content_invalid_reference', __( 'The transaction reference is malformed.', 'tokenize-content' ), array( 'status' => 400 ) );
-		}
-		$live = Settings::fetch_live_collections();
-		if ( is_wp_error( $live ) ) {
-			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
-		}
-		$owned = array_filter( $live, function ( $collection ) use ( $contract ) {
-			return Settings::same_address( $contract, $collection['contract'] );
-		} );
-		if ( ! $owned ) {
-			return new \WP_Error( 'tokenize_content_unknown_collection', __( 'That collection does not belong to the connected wallet.', 'tokenize-content' ), array( 'status' => 422 ) );
-		}
-		$token_id = MintCheck::minted_token( $tx_hash, $contract, (int) PostMeta::get_batch_index( $post_id ) );
-		if ( is_wp_error( $token_id ) ) {
-			return $token_id;
-		}
-		if ( (string) $request->get_param( 'tokenId' ) !== $token_id ) {
-			return new \WP_Error( 'tokenize_content_not_minted', __( 'This transaction did not mint this post.', 'tokenize-content' ), array( 'status' => 422 ) );
-		}
-		PostMeta::save_minted( $post_id, array(
-			'token_id' => $token_id,
-			'tx_hash'  => $tx_hash,
-			'contract' => $contract,
-			'license'  => PostMeta::get_license( $post_id ),
-		) );
-		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
-	}
-
-	public static function save_error( \WP_REST_Request $request ) {
-		$post_id = self::post_id( $request );
-		PostMeta::save_error( $post_id, (string) $request->get_param( 'message' ) );
-		return rest_ensure_response( array( 'status' => PostMeta::get_status( $post_id ) ) );
-	}
-
 	public static function save_wallet( \WP_REST_Request $request ) {
 		$address = (string) $request->get_param( 'address' );
 		Settings::save_wallet_address( $address );
@@ -235,7 +144,7 @@ class RestProxy {
 	public static function save_default_collection( \WP_REST_Request $request ) {
 		$live = Settings::fetch_live_collections();
 		if ( is_wp_error( $live ) ) {
-			return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
+			return self::collections_unavailable();
 		}
 		$wanted = (string) $request->get_param( 'contract' );
 		foreach ( $live as $collection ) {
@@ -279,7 +188,15 @@ class RestProxy {
 		return self::relay( $response );
 	}
 
-	private static function post_id( \WP_REST_Request $request ): int {
+	public static function collections_unavailable(): \WP_Error {
+		return new \WP_Error( 'tokenize_content_collections_unavailable', __( 'Collections could not be loaded right now. Try again.', 'tokenize-content' ), array( 'status' => 502 ) );
+	}
+
+	public static function invalid_reference(): \WP_Error {
+		return new \WP_Error( 'tokenize_content_invalid_reference', __( 'The transaction reference is malformed.', 'tokenize-content' ), array( 'status' => 400 ) );
+	}
+
+	public static function post_id( \WP_REST_Request $request ): int {
 		$params = $request->get_url_params();
 		return isset( $params['id'] ) ? (int) $params['id'] : 0;
 	}
@@ -358,15 +275,16 @@ class RestProxy {
 		}
 		$posts = is_array( $params['posts'] ) ? array_values( $params['posts'] ) : array();
 		if ( ! is_array( $intent_ids ) || count( $posts ) !== count( $intent_ids ) ) {
-			return new \WP_Error( 'tokenize_content_invalid_reference', __( 'The transaction reference is malformed.', 'tokenize-content' ), array( 'status' => 400 ) );
+			return self::invalid_reference();
 		}
 		$plan = array();
 		foreach ( $posts as $index => $entry ) {
 			$id       = is_array( $entry ) && isset( $entry['id'] ) ? (int) $entry['id'] : 0;
 			$contract = is_array( $entry ) && isset( $entry['contract'] ) ? (string) $entry['contract'] : '';
 			$license  = is_array( $entry ) && isset( $entry['license'] ) ? (string) $entry['license'] : '';
+			$policy   = is_array( $entry ) && isset( $entry['aiPolicy'] ) && in_array( $entry['aiPolicy'], Settings::AI_POLICIES, true ) ? (string) $entry['aiPolicy'] : '';
 			if ( $id < 1 || ! preg_match( '/^0x[0-9a-fA-F]+$/', $contract ) ) {
-				return new \WP_Error( 'tokenize_content_invalid_reference', __( 'The transaction reference is malformed.', 'tokenize-content' ), array( 'status' => 400 ) );
+				return self::invalid_reference();
 			}
 			if ( ! current_user_can( 'edit_post', $id ) ) {
 				return new \WP_Error( 'tokenize_content_forbidden', __( "You can't tokenize a post you don't have edit access to.", 'tokenize-content' ), array( 'status' => 403 ) );
@@ -374,7 +292,7 @@ class RestProxy {
 			if ( PostMeta::STATUS_MINTING !== PostMeta::get_status( $id ) ) {
 				return new \WP_Error( 'tokenize_content_not_minting', __( 'This post is not waiting for a token.', 'tokenize-content' ), array( 'status' => 409 ) );
 			}
-			$plan[] = array( 'id' => $id, 'contract' => $contract, 'license' => $license, 'index' => $index );
+			$plan[] = array( 'id' => $id, 'contract' => $contract, 'license' => $license, 'ai_policy' => $policy, 'index' => $index );
 		}
 		return $plan;
 	}
@@ -389,6 +307,7 @@ class RestProxy {
 				'tx_hash'     => $tx_hash,
 				'contract'    => $entry['contract'],
 				'license'     => $entry['license'],
+				'ai_policy'   => $entry['ai_policy'],
 				'batch_index' => (string) $entry['index'],
 			) );
 		}

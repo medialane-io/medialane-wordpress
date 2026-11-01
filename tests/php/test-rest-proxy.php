@@ -596,6 +596,36 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 		$this->assertSame( '1', \TokenizeContent\PostMeta::get_batch_index( $second ) );
 	}
 
+	public function test_a_sponsored_execute_records_the_ai_policy_of_each_post_and_ignores_an_unknown_one() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( Settings::OPTION_API_KEY, 'test-key' );
+		$first  = $this->minting_post();
+		$second = $this->minting_post();
+		add_filter( 'pre_http_request', function () {
+			return array( 'response' => array( 'code' => 200 ), 'body' => wp_json_encode( array( 'transactionHash' => '0xfeed' ) ) );
+		} );
+
+		$this->server->dispatch( $this->execute_request( array(
+			array( 'id' => $first, 'contract' => '0x0abc', 'license' => 'CC BY', 'aiPolicy' => 'Not Allowed' ),
+			array( 'id' => $second, 'contract' => '0x0abc', 'license' => 'CC BY', 'aiPolicy' => '<b>x</b>' ),
+		) ) );
+
+		$this->assertSame( 'Not Allowed', \TokenizeContent\PostMeta::get_ai_policy( $first ) );
+		$this->assertSame( '', \TokenizeContent\PostMeta::get_ai_policy( $second ) );
+	}
+
+	public function test_tokenize_data_describes_a_published_page() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$page = $this->factory->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'About us' ) );
+
+		$request = new WP_REST_Request( 'POST', '/tokenize-content/v1/tokenize-data' );
+		$request->set_body_params( array( 'ids' => array( $page ) ) );
+		$post = $this->server->dispatch( $request )->get_data()['posts'][ $page ];
+
+		$this->assertSame( 'About us', $post['title'] );
+		$this->assertArrayNotHasKey( 'error', $post );
+	}
+
 	public function test_the_post_list_is_not_forwarded_to_the_backend() {
 		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
 		update_option( Settings::OPTION_API_KEY, 'test-key' );
@@ -778,6 +808,29 @@ class Test_Rest_Proxy extends Tokenize_Test_Case {
 
 		$this->assertSame( 'This post is already tokenized.', $post['error'] );
 		$this->assertArrayNotHasKey( 'content', $post );
+	}
+
+	public function test_recording_a_failure_on_an_already_tokenized_post_is_refused_and_leaves_it_tokenized() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		\TokenizeContent\PostMeta::save_minted( $post_id, array( 'token_id' => '1', 'tx_hash' => '0xabc', 'contract' => '0xdef', 'license' => 'CC BY' ) );
+
+		$response = $this->server->dispatch( $this->json_request( "/posts/{$post_id}/error", array( 'message' => 'Boom' ) ) );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'minted', \TokenizeContent\PostMeta::get_status( $post_id ) );
+		$this->assertSame( '', \TokenizeContent\PostMeta::get_error( $post_id ) );
+	}
+
+	public function test_recording_a_failure_on_a_post_being_tokenized_marks_it_failed() {
+		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		$post_id = $this->minting_post();
+
+		$response = $this->server->dispatch( $this->json_request( "/posts/{$post_id}/error", array( 'message' => 'Boom' ) ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'error', \TokenizeContent\PostMeta::get_status( $post_id ) );
+		$this->assertSame( 'Boom', \TokenizeContent\PostMeta::get_error( $post_id ) );
 	}
 
 	public function test_starting_a_mint_on_an_already_tokenized_post_is_refused() {
