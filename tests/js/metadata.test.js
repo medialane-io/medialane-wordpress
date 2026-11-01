@@ -34,6 +34,10 @@ describe("buildPostMetadata", () => {
     expect(attrs).not.toHaveProperty("Publisher");
   });
 
+  it("has no Registration attribute", () => {
+    expect(traits(buildPostMetadata(post))).not.toHaveProperty("Registration");
+  });
+
   it("expands the CC BY-SA preset into the platform's canonical trait set", () => {
     expect(traits(buildPostMetadata(post))).toMatchObject({
       License: "CC BY-SA",
